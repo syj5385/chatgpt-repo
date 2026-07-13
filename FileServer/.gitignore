@@ -1,6 +1,10 @@
 .DS_Store
+
 files/*
 !files/.gitkeep
 !files/Trash/
 files/Trash/*
 !files/Trash/.gitkeep
+
+certs/*
+!certs/.gitkeep
