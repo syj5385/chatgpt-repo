@@ -1,0 +1,22 @@
+services:
+  fileserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fileserver:latest
+    container_name: FileServer
+    ports:
+      - "${FILESERVER_PORT:-18080}:80"
+    volumes:
+      - ./index.html:/tmp/index.html:ro
+      - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
+      - ./files:/files
+    command:
+      - /bin/bash
+      - -c
+      - |
+        mkdir -p /files/Trash /tmp/nginx-client-body
+        ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+        nginx -t
+        exec nginx -g 'daemon off;'
+    restart: unless-stopped
