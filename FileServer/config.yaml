@@ -7,15 +7,36 @@ services:
     container_name: FileServer
     ports:
       - "${FILESERVER_PORT:-18080}:80"
+      - "${FILESERVER_HTTPS_PORT:-18443}:443"
+    environment:
+      FILESERVER_CERT_CN: "${FILESERVER_CERT_CN:-localhost}"
+      FILESERVER_CERT_SAN: "${FILESERVER_CERT_SAN:-DNS:localhost,IP:127.0.0.1}"
+      FILESERVER_CERT_DAYS: "${FILESERVER_CERT_DAYS:-825}"
     volumes:
       - ./index.html:/tmp/index.html:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
       - ./files:/files
+      - ./certs:/etc/nginx/certs
     command:
       - /bin/bash
       - -c
       - |
-        mkdir -p /files/Trash /tmp/nginx-client-body
+        set -e
+        mkdir -p /files/Trash /tmp/nginx-client-body /etc/nginx/certs
+
+        if [ ! -s /etc/nginx/certs/fileserver.crt ] || [ ! -s /etc/nginx/certs/fileserver.key ]; then
+          echo "Generating a self-signed TLS certificate for $${FILESERVER_CERT_CN}"
+          umask 077
+          openssl req -x509 -nodes -newkey rsa:2048 -sha256 \
+            -days "$${FILESERVER_CERT_DAYS}" \
+            -keyout /etc/nginx/certs/fileserver.key \
+            -out /etc/nginx/certs/fileserver.crt \
+            -subj "/CN=$${FILESERVER_CERT_CN}" \
+            -addext "subjectAltName=$${FILESERVER_CERT_SAN}"
+        fi
+
+        chmod 600 /etc/nginx/certs/fileserver.key
+        chmod 644 /etc/nginx/certs/fileserver.crt
         ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
         nginx -t
         exec nginx -g 'daemon off;'
