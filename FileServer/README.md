@@ -2,6 +2,8 @@
 
 Windows 11 파일 탐색기와 비슷한 UI를 제공하는 Nginx/WebDAV 기반 웹 파일 탐색기입니다. 실제 파일 저장소는 호스트의 `FileServer/files`이며 컨테이너의 `/files`에 마운트됩니다.
 
+HTTP와 HTTPS 접속을 모두 지원합니다. TLS 인증서가 없으면 컨테이너 시작 시 self-signed 인증서를 자동으로 생성합니다.
+
 ## 실행
 
 ```bash
@@ -9,10 +11,68 @@ cd /Users/yyjun.song/workspace/FileServer
 docker compose -f config.yaml up -d --build
 ```
 
-기본 접속 주소는 `http://localhost:18080`입니다. 다른 포트를 사용하려면 다음처럼 실행합니다.
+기본 접속 주소:
+
+```text
+HTTP  : http://localhost:18080
+HTTPS : https://localhost:18443
+```
+
+처음 생성되는 인증서는 self-signed 인증서이므로 브라우저에 보안 경고가 표시됩니다. 로컬 테스트에서는 인증서 정보를 확인한 뒤 접속을 계속할 수 있습니다.
+
+포트를 변경하려면 다음처럼 실행합니다.
 
 ```bash
-FILESERVER_PORT=19090 docker compose -f config.yaml up -d --build
+FILESERVER_PORT=19090 \
+FILESERVER_HTTPS_PORT=19443 \
+docker compose -f config.yaml up -d --build
+```
+
+HTTPS를 표준 포트 443으로 열려면 다음처럼 실행합니다.
+
+```bash
+FILESERVER_HTTPS_PORT=443 docker compose -f config.yaml up -d --build
+```
+
+## LAN IP로 HTTPS 접속
+
+다른 PC나 스마트폰에서 서버의 LAN IP로 접속하려면 해당 IP가 인증서의 Subject Alternative Name에 포함되어야 합니다.
+
+예를 들어 Mac의 IP가 `192.168.0.20`이면 기존 자동 생성 인증서를 지운 뒤 다음처럼 다시 실행합니다.
+
+```bash
+rm -f certs/fileserver.crt certs/fileserver.key
+
+FILESERVER_CERT_CN=192.168.0.20 \
+FILESERVER_CERT_SAN="DNS:localhost,IP:127.0.0.1,IP:192.168.0.20" \
+docker compose -f config.yaml up -d --build
+```
+
+접속 주소:
+
+```text
+https://192.168.0.20:18443
+```
+
+self-signed 인증서이므로 LAN IP가 인증서에 포함되어 있더라도 인증기관 신뢰 경고는 계속 표시될 수 있습니다.
+
+## 직접 발급한 인증서 사용
+
+자동 생성 인증서 대신 신뢰할 수 있는 인증서 또는 `mkcert`로 만든 인증서를 사용할 수 있습니다.
+
+다음 파일명으로 인증서를 배치합니다.
+
+```text
+certs/fileserver.crt
+certs/fileserver.key
+```
+
+두 파일이 존재하면 컨테이너는 인증서를 새로 생성하지 않고 해당 인증서를 사용합니다.
+
+인증서를 교체한 뒤 컨테이너를 재시작합니다.
+
+```bash
+docker compose -f config.yaml restart
 ```
 
 ## 디렉터리 구조
@@ -23,6 +83,9 @@ FileServer/
 ├── config.yaml
 ├── index.html
 ├── nginx-default.conf
+├── certs/
+│   ├── fileserver.crt       # 자동 생성 또는 사용자 인증서
+│   └── fileserver.key       # 자동 생성 또는 사용자 개인키
 └── files/
     └── Trash/
 ```
@@ -31,9 +94,11 @@ FileServer/
 - `/files/`: Nginx autoindex JSON 및 WebDAV 엔드포인트
 - `./files`: 실제 파일 저장소
 - `./files/Trash`: 삭제 항목 저장소
+- `./certs`: TLS 인증서와 개인키 저장소
 
 ## 주요 기능
 
+- HTTP 및 HTTPS 접속
 - 디렉터리 탐색, 검색, 정렬, 뒤로/앞으로/상위 이동
 - 파일 업로드 및 드래그 앤 드롭
 - 파일 다운로드 및 브라우저 기반 폴더 ZIP 다운로드
@@ -50,21 +115,32 @@ docker compose -f config.yaml ps
 docker compose -f config.yaml logs --tail=100
 docker exec FileServer nginx -t
 curl -I http://localhost:18080/
-curl http://localhost:18080/files/
+curl -kI https://localhost:18443/
+curl -k https://localhost:18443/files/
+```
+
+`-k` 옵션은 self-signed 인증서를 사용하는 로컬 테스트를 위한 것입니다. 정식으로 신뢰되는 인증서를 설치한 경우에는 사용하지 않아도 됩니다.
+
+인증서 정보 확인:
+
+```bash
+openssl s_client -connect localhost:18443 -servername localhost </dev/null \
+  | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
 ```
 
 WebDAV 동작 확인:
 
 ```bash
-curl -i -X MKCOL http://localhost:18080/files/Test/
+curl -ki -X MKCOL https://localhost:18443/files/Test/
 printf 'hello\n' > /tmp/fileserver-test.txt
-curl -i -X PUT --data-binary @/tmp/fileserver-test.txt \
-  http://localhost:18080/files/Test/test.txt
-curl -i http://localhost:18080/files/Test/test.txt
+curl -ki -X PUT --data-binary @/tmp/fileserver-test.txt \
+  https://localhost:18443/files/Test/test.txt
+curl -ki https://localhost:18443/files/Test/test.txt
 ```
 
 ## 알려진 제약사항
 
+- 자동 생성 인증서는 self-signed 인증서이므로 브라우저 신뢰 경고가 발생합니다.
 - 폴더 ZIP은 브라우저 메모리에서 생성되므로 매우 큰 폴더에는 적합하지 않습니다.
 - 텍스트 편집은 5MB 이하 파일만 지원합니다.
 - Linux 파일시스템 규칙을 사용하므로 Windows 예약 이름에 대해서는 경고만 표시합니다.
@@ -72,4 +148,4 @@ curl -i http://localhost:18080/files/Test/test.txt
 
 ## 보안 주의사항
 
-이 서버는 인증 없이 파일 업로드, 수정, 이동 및 삭제 기능을 제공합니다. 신뢰할 수 없는 네트워크나 인터넷에 그대로 공개하지 마십시오. 외부 공개가 필요하면 TLS와 인증 또는 VPN/역방향 프록시를 추가해야 합니다.
+HTTPS는 전송 구간을 암호화하지만 사용자 인증을 제공하지는 않습니다. 이 서버는 인증 없이 파일 업로드, 수정, 이동 및 삭제 기능을 제공합니다. 신뢰할 수 없는 네트워크나 인터넷에 그대로 공개하지 마십시오. 외부 공개가 필요하면 TLS와 함께 로그인 인증, VPN, 방화벽 또는 인증 기능이 있는 역방향 프록시를 적용해야 합니다.
