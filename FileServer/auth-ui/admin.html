@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FileServer 관리자</title>
+  <link rel="stylesheet" href="/auth-assets/auth.css">
+</head>
+<body class="admin-body">
+  <main class="admin-shell">
+    <header class="admin-top">
+      <span>📁</span><h1>FileServer 관리자</h1><span class="grow"></span>
+      <a href="/">파일 탐색기</a><button id="logout" type="button">로그아웃</button>
+    </header>
+    <div id="message" class="message" role="alert"></div>
+    <section class="summary">
+      <div class="metric">승인 대기<b id="pendingCount">0</b></div>
+      <div class="metric">승인 사용자<b id="approvedCount">0</b></div>
+      <div class="metric">거절 사용자<b id="rejectedCount">0</b></div>
+      <div class="metric">중지 사용자<b id="disabledCount">0</b></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>권한 승인 요청</h2></div>
+      <div id="pending"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>사용자 관리</h2></div>
+      <div id="users"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>감사 로그</h2></div>
+      <div id="logs"></div>
+    </section>
+  </main>
+<script>
+(() => {
+  'use strict';
+  const message = document.getElementById('message');
+  let csrfToken = '';
+  let users = [];
+
+  function show(text, kind = 'error') {
+    message.textContent = text;
+    message.className = `message show ${kind}`;
+    setTimeout(() => { if (message.textContent === text) message.className = 'message'; }, 4000);
+  }
+
+  async function json(response) {
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      location.replace('/login?next=/admin');
+      throw new Error('로그인이 필요합니다.');
+    }
+    if (!response.ok) throw new Error(body.detail || `요청 실패 (HTTP ${response.status})`);
+    return body;
+  }
+
+  function badge(status) {
+    const span = document.createElement('span');
+    span.className = `badge ${status}`;
+    span.textContent = ({ pending: '승인 대기', approved: '승인', rejected: '거절', disabled: '중지' })[status] || status;
+    return span;
+  }
+
+  function button(label, kind, action) {
+    const element = document.createElement('button');
+    element.type = 'button';
+    element.className = `small-button ${kind || ''}`.trim();
+    element.textContent = label;
+    element.addEventListener('click', action);
+    return element;
+  }
+
+  async function act(user, action) {
+    const labels = { approve: '승인', reject: '거절', disable: '사용 중지', enable: '다시 활성화' };
+    if (!confirm(`${user.username} 계정을 ${labels[action]}하시겠습니까?`)) return;
+    try {
+      await json(await fetch(`/api/admin/users/${user.id}/${action}`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken }
+      }));
+      show(`${user.username} 계정을 ${labels[action]}했습니다.`, 'success');
+      await loadAll();
+    } catch (error) {
+      show(error.message);
+    }
+  }
+
+  function userActions(user, pendingOnly = false) {
+    const cell = document.createElement('td');
+    cell.className = 'actions';
+    if (user.role === 'admin') return cell;
+    if (user.status === 'pending') {
+      cell.append(button('승인', 'primary', () => act(user, 'approve')), button('거절', 'danger', () => act(user, 'reject')));
+    } else if (!pendingOnly && user.status === 'approved') {
+      cell.append(button('사용 중지', 'danger', () => act(user, 'disable')));
+    } else if (!pendingOnly && (user.status === 'rejected' || user.status === 'disabled')) {
+      cell.append(button('다시 활성화', 'primary', () => act(user, 'enable')));
+    }
+    return cell;
+  }
+
+  function renderTable(target, rows, pendingOnly = false) {
+    if (!rows.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = pendingOnly ? '승인 대기 요청이 없습니다.' : '표시할 사용자가 없습니다.';
+      target.replaceChildren(empty);
+      return;
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['사용자 ID', '역할', '상태', '등록 일시', '마지막 로그인', '작업'].forEach(text => {
+      const th = document.createElement('th'); th.textContent = text; headRow.append(th);
+    });
+    head.append(headRow);
+    const body = document.createElement('tbody');
+    rows.forEach(user => {
+      const row = document.createElement('tr');
+      const username = document.createElement('td'); username.textContent = user.username;
+      const role = document.createElement('td'); role.textContent = user.role;
+      const state = document.createElement('td'); state.append(badge(user.status));
+      const created = document.createElement('td'); created.textContent = user.created_at ? new Date(user.created_at).toLocaleString() : '—';
+      const login = document.createElement('td'); login.textContent = user.last_login_at ? new Date(user.last_login_at).toLocaleString() : '—';
+      row.append(username, role, state, created, login, userActions(user, pendingOnly));
+      body.append(row);
+    });
+    table.append(head, body); wrap.append(table); target.replaceChildren(wrap);
+  }
+
+  function renderUsers() {
+    const counts = { pending: 0, approved: 0, rejected: 0, disabled: 0 };
+    users.filter(user => user.role === 'user').forEach(user => counts[user.status]++);
+    Object.entries(counts).forEach(([key, value]) => document.getElementById(`${key}Count`).textContent = value);
+    renderTable(document.getElementById('pending'), users.filter(user => user.role === 'user' && user.status === 'pending'), true);
+    renderTable(document.getElementById('users'), users, false);
+  }
+
+  function renderLogs(logs) {
+    const target = document.getElementById('logs');
+    if (!logs.length) return target.replaceChildren(Object.assign(document.createElement('div'), { className: 'empty', textContent: '감사 로그가 없습니다.' }));
+    const wrap = document.createElement('div'); wrap.className = 'table-wrap';
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const tr = document.createElement('tr');
+    ['시간', '작업', '관리자/사용자', '대상', 'IP', '상세'].forEach(text => { const th = document.createElement('th'); th.textContent = text; tr.append(th); });
+    head.append(tr);
+    const body = document.createElement('tbody');
+    logs.forEach(log => {
+      const row = document.createElement('tr');
+      [log.created_at ? new Date(log.created_at).toLocaleString() : '—', log.action, log.actor_username || '시스템', log.target_username || '—', log.ip_address || '—', log.details || '—'].forEach(value => {
+        const td = document.createElement('td'); td.textContent = value; row.append(td);
+      });
+      body.append(row);
+    });
+    table.append(head, body); wrap.append(table); target.replaceChildren(wrap);
+  }
+
+  async function loadAll() {
+    const [userData, logData] = await Promise.all([
+      json(await fetch('/api/admin/users', { cache: 'no-store' })),
+      json(await fetch('/api/admin/audit-logs?limit=100', { cache: 'no-store' }))
+    ]);
+    users = userData.users;
+    renderUsers();
+    renderLogs(logData.logs);
+  }
+
+  document.getElementById('logout').addEventListener('click', async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', headers: { 'X-CSRF-Token': csrfToken } });
+    } finally {
+      location.replace('/login');
+    }
+  });
+
+  async function initialize() {
+    try {
+      const config = await json(await fetch('/api/auth/config', { cache: 'no-store' }));
+      if (config.mode === 'public') return location.replace('/');
+      const me = await json(await fetch('/api/auth/me', { cache: 'no-store' }));
+      if (me.user?.must_change_password) return location.replace('/change-password');
+      if (me.user?.role !== 'admin') return location.replace('/');
+      csrfToken = me.csrf_token;
+      await loadAll();
+    } catch (error) {
+      show(error.message);
+    }
+  }
+
+  initialize();
+})();
+</script>
+</body>
+</html>
