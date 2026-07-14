@@ -15,6 +15,7 @@ services:
       FILESERVER_HTTPS_REDIRECT_PORT: "${FILESERVER_HTTPS_PORT:-18443}"
     volumes:
       - ./index.html:/tmp/index.html:ro
+      - ./file-actions.js:/tmp/file-actions.js:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
       - ./files:/files
       - ./certs:/etc/nginx/certs
@@ -50,6 +51,11 @@ services:
 
         chmod 600 /etc/nginx/certs/fileserver.key
         chmod 644 /etc/nginx/certs/fileserver.crt
+
+        sed 's#</body>#<script src="/file-actions.js"></script></body>#' \
+          /tmp/index.html \
+          > /tmp/fileserver-index.html
+
         rm -f /etc/nginx/sites-enabled/default
         sed "s/__HTTPS_REDIRECT_PORT__/$${FILESERVER_HTTPS_REDIRECT_PORT}/g" \
           /etc/nginx/sites-available/default \
