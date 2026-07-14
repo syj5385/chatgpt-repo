@@ -1,0 +1,107 @@
+/* Stable three-action toolbar on narrow screens. */
+.toolbar > #newFolder,
+.toolbar > #newFile {
+  display: none !important;
+}
+
+.toolbar > #newCreateAction,
+.toolbar > #uploadFiles,
+.toolbar > #uploadFolder {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#newCreateAction {
+  gap: 6px;
+}
+
+#newCreateAction .create-label {
+  display: inline;
+}
+
+#newCreateAction .create-chevron {
+  width: 14px;
+  opacity: .65;
+}
+
+.mobile-create-menu {
+  position: fixed;
+  z-index: 220;
+  min-width: 190px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px var(--shadow);
+}
+
+.mobile-create-menu[hidden] {
+  display: none !important;
+}
+
+.mobile-create-menu button {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.mobile-create-menu button:hover,
+.mobile-create-menu button:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+
+.mobile-create-menu .fs-icon {
+  flex: 0 0 20px;
+}
+
+@media (max-width: 780px) {
+  .toolbar {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100%;
+    min-height: 52px;
+    height: auto !important;
+    padding: 7px 8px !important;
+    overflow: visible !important;
+  }
+
+  .toolbar > #newCreateAction,
+  .toolbar > #uploadFiles,
+  .toolbar > #uploadFolder {
+    width: 100% !important;
+    height: 38px !important;
+    padding: 0 6px !important;
+  }
+
+  .toolbar > #newCreateAction span:not(.fs-icon),
+  .toolbar > #uploadFiles span,
+  .toolbar > #uploadFolder span {
+    display: none !important;
+  }
+
+  #newCreateAction .create-chevron {
+    display: inline-flex !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .toolbar {
+    gap: 4px !important;
+    padding-inline: 5px !important;
+  }
+}
