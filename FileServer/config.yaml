@@ -14,8 +14,14 @@ services:
       FILESERVER_REMEMBER_DAYS: "${FILESERVER_REMEMBER_DAYS:-30}"
       FILESERVER_PASSWORD_MIN_LENGTH: "${FILESERVER_PASSWORD_MIN_LENGTH:-8}"
       FILESERVER_AUTH_DB: /data/auth.db
+      FILESERVER_FILES_ROOT: /files
+      FILESERVER_DEFAULT_QUOTA_BYTES: "${FILESERVER_DEFAULT_QUOTA_BYTES:-53687091200}"
+      FILESERVER_UPLOAD_CHUNK_BYTES: "${FILESERVER_UPLOAD_CHUNK_BYTES:-8388608}"
+      FILESERVER_VERSION_LIMIT: "${FILESERVER_VERSION_LIMIT:-20}"
+      FILESERVER_SHARE_MAX_DAYS: "${FILESERVER_SHARE_MAX_DAYS:-90}"
     volumes:
       - ./auth-data:/data
+      - ./files:/files
     restart: unless-stopped
 
   fileserver:
@@ -37,13 +43,7 @@ services:
       FILESERVER_HTTPS_REDIRECT_PORT: "${FILESERVER_HTTPS_PORT:-5443}"
     volumes:
       - ./index.html:/tmp/index.html:ro
-      - ./file-actions.js:/tmp/file-actions.js:ro
-      - ./settings.js:/tmp/settings.js:ro
-      - ./connection-status.js:/tmp/connection-status.js:ro
-      - ./breadcrumb.js:/tmp/breadcrumb.js:ro
-      - ./sidebar-favorites.js:/tmp/sidebar-favorites.js:ro
-      - ./ui-cleanup.js:/tmp/ui-cleanup.js:ro
-      - ./responsive-location-bar.js:/tmp/responsive-location-bar.js:ro
+      - ./explorer-v2.js:/tmp/explorer-v2.js:ro
       - ./auth-client.js:/tmp/auth-client.js:ro
       - ./auth-ui:/tmp/auth-ui:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
@@ -54,7 +54,7 @@ services:
       - -c
       - |
         set -e
-        mkdir -p /files/Trash /tmp/nginx-client-body /etc/nginx/certs
+        mkdir -p /files/Trash /files/users /files/shared /tmp/nginx-client-body /etc/nginx/certs
 
         case "$${FILESERVER_HTTPS_REDIRECT_PORT}" in
           ''|*[!0-9]*)
@@ -81,10 +81,7 @@ services:
 
         chmod 600 /etc/nginx/certs/fileserver.key
         chmod 644 /etc/nginx/certs/fileserver.crt
-
-        sed 's#</body>#<script src="/file-actions.js"></script><script src="/settings.js"></script><script src="/connection-status.js"></script><script src="/breadcrumb.js"></script><script src="/sidebar-favorites.js"></script><script src="/ui-cleanup.js"></script><script src="/responsive-location-bar.js"></script><script src="/auth-client.js"></script></body>#' \
-          /tmp/index.html \
-          > /tmp/fileserver-index.html
+        cp /tmp/index.html /tmp/fileserver-index.html
 
         rm -f /etc/nginx/sites-enabled/default
         sed "s/__HTTPS_REDIRECT_PORT__/$${FILESERVER_HTTPS_REDIRECT_PORT}/g" \
