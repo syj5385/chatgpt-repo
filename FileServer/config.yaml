@@ -19,6 +19,7 @@ services:
       - ./settings.js:/tmp/settings.js:ro
       - ./connection-status.js:/tmp/connection-status.js:ro
       - ./breadcrumb.js:/tmp/breadcrumb.js:ro
+      - ./sidebar-favorites.js:/tmp/sidebar-favorites.js:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
       - ./files:/files
       - ./certs:/etc/nginx/certs
@@ -55,7 +56,7 @@ services:
         chmod 600 /etc/nginx/certs/fileserver.key
         chmod 644 /etc/nginx/certs/fileserver.crt
 
-        sed 's#</body>#<script src="/file-actions.js"></script><script src="/settings.js"></script><script src="/connection-status.js"></script><script src="/breadcrumb.js"></script></body>#' \
+        sed 's#</body>#<script src="/file-actions.js"></script><script src="/settings.js"></script><script src="/connection-status.js"></script><script src="/breadcrumb.js"></script><script src="/sidebar-favorites.js"></script></body>#' \
           /tmp/index.html \
           > /tmp/fileserver-index.html
 
