@@ -1,0 +1,91 @@
+/* Navigation, breadcrumb, drag-and-drop and exclusive-view improvements. */
+
+/* Author styles for .grid and table can override the browser's default
+   [hidden] rule. Keep exactly one explorer view visible. */
+#content > [hidden],
+#table[hidden],
+#grid[hidden],
+#activityView[hidden] {
+  display: none !important;
+}
+
+.address {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.address.has-breadcrumbs:not(.is-editing) > input {
+  display: none;
+}
+
+.address.is-editing > .fs-breadcrumbs {
+  display: none;
+}
+
+.fs-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  white-space: nowrap;
+  padding-left: 3px;
+}
+
+.fs-breadcrumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.fs-breadcrumb {
+  flex: 0 0 auto;
+  max-width: min(220px, 34vw);
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  padding: 0 7px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fs-breadcrumb:hover,
+.fs-breadcrumb:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+
+.fs-breadcrumb.current {
+  font-weight: 650;
+}
+
+.fs-breadcrumb-separator {
+  flex: 0 0 auto;
+  color: var(--muted);
+  user-select: none;
+}
+
+[data-path].fs-drag-download {
+  cursor: grab;
+}
+
+[data-path].fs-drag-download:active {
+  cursor: grabbing;
+}
+
+[data-path].fs-drag-download.dragging {
+  opacity: .58;
+}
+
+@media (max-width: 780px) {
+  .fs-breadcrumb {
+    max-width: 42vw;
+    padding-inline: 5px;
+  }
+}
