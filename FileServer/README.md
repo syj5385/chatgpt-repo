@@ -20,8 +20,8 @@ bash restart.sh
 기본 접속 주소:
 
 ```text
-HTTP  : http://localhost:18080  → HTTPS로 자동 이동
-HTTPS : https://localhost:18443
+HTTP  : http://localhost:5080  → HTTPS로 자동 이동
+HTTPS : https://localhost:5443
 ```
 
 처음 생성되는 인증서는 self-signed 인증서이므로 브라우저에 보안 경고가 표시됩니다. 인증서 정보를 확인한 뒤 HTTPS 접속을 계속해야 로그인 쿠키가 정상적으로 동작합니다.
@@ -60,14 +60,14 @@ Password : admin
 ```text
 pending    승인 대기
 approved   승인 완료
-a rejected 승인 거절
+rejected   승인 거절
 disabled   사용 중지
 ```
 
 관리자 페이지:
 
 ```text
-https://localhost:18443/admin
+https://localhost:5443/admin
 ```
 
 관리자 페이지에서는 다음 작업을 할 수 있습니다.
@@ -163,7 +163,7 @@ bash restart.sh
 접속 주소:
 
 ```text
-https://192.168.0.20:18443
+https://192.168.0.20:5443
 ```
 
 self-signed 인증서는 IP가 SAN에 포함되어 있어도 신뢰기관 경고가 나타날 수 있습니다.
@@ -246,19 +246,19 @@ docker exec FileServer nginx -t
 인증 설정 확인:
 
 ```bash
-curl -k https://localhost:18443/api/auth/config
+curl -k https://localhost:5443/api/auth/config
 ```
 
 비로그인 상태에서 private 모드의 파일 요청은 `401 Unauthorized`를 반환해야 합니다.
 
 ```bash
-curl -ki https://localhost:18443/files/
+curl -ki https://localhost:5443/files/
 ```
 
 루트 페이지는 로그인 화면으로 리디렉션되어야 합니다.
 
 ```bash
-curl -ki https://localhost:18443/
+curl -ki https://localhost:5443/
 ```
 
 공개 모드에서는 `/files/`가 로그인 없이 JSON 목록을 반환합니다.
