@@ -1,4 +1,4 @@
-/* Icon-only primary toolbar. Keep it visible at every viewport width. */
+/* Four-button icon-only toolbar: create, upload, list view, icon view. */
 .toolbar {
   display: flex !important;
   align-items: center !important;
@@ -11,6 +11,8 @@
 
 .toolbar > #newFolder,
 .toolbar > #newFile,
+.toolbar > #uploadFiles,
+.toolbar > #uploadFolder,
 .toolbar > #download,
 .toolbar > #move,
 .toolbar > #copy,
@@ -25,8 +27,9 @@
 }
 
 .toolbar > #newCreateAction,
-.toolbar > #uploadFiles,
-.toolbar > #uploadFolder {
+.toolbar > #newUploadAction,
+.toolbar > #listViewAction,
+.toolbar > #gridViewAction {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -38,31 +41,23 @@
   padding: 0 !important;
   visibility: visible !important;
   opacity: 1 !important;
-  overflow: visible !important;
 }
 
-/* Hide labels only. Never hide the SVG wrapper itself. */
-.toolbar > #newCreateAction > span:not(.fs-icon),
-.toolbar > #uploadFiles > span:not(.fs-icon),
-.toolbar > #uploadFolder > span:not(.fs-icon) {
-  display: none !important;
-}
-
-.toolbar > #newCreateAction > .fs-icon,
-.toolbar > #uploadFiles > .fs-icon,
-.toolbar > #uploadFolder > .fs-icon,
-.toolbar > #newCreateAction > .fs-icon svg,
-.toolbar > #uploadFiles > .fs-icon svg,
-.toolbar > #uploadFolder > .fs-icon svg {
+.toolbar .fs-icon,
+.toolbar .fs-icon svg {
   display: block !important;
   width: 21px !important;
   height: 21px !important;
   min-width: 21px !important;
-  visibility: visible !important;
-  opacity: 1 !important;
 }
 
-.mobile-create-menu {
+.toolbar .view-action.active {
+  background: var(--selected) !important;
+  color: var(--accent) !important;
+  border-color: color-mix(in srgb,var(--accent) 45%,var(--line)) !important;
+}
+
+.mobile-action-menu {
   position: fixed;
   z-index: 220;
   min-width: 190px;
@@ -73,11 +68,11 @@
   box-shadow: 0 12px 32px var(--shadow);
 }
 
-.mobile-create-menu[hidden] {
+.mobile-action-menu[hidden] {
   display: none !important;
 }
 
-.mobile-create-menu button {
+.mobile-action-menu button {
   width: 100%;
   min-height: 42px;
   display: flex;
@@ -92,8 +87,8 @@
   cursor: pointer;
 }
 
-.mobile-create-menu button:hover,
-.mobile-create-menu button:focus-visible {
+.mobile-action-menu button:hover,
+.mobile-action-menu button:focus-visible {
   background: var(--hover);
   outline: none;
 }
@@ -101,6 +96,7 @@
 @media (max-width: 780px) {
   .toolbar {
     width: 100% !important;
+    justify-content: flex-start !important;
     padding-inline: max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right)) !important;
   }
 }
