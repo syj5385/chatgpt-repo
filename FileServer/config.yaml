@@ -28,7 +28,7 @@ services:
       auth:
         condition: service_healthy
     ports:
-      - "${FILESERVER_PORT:-5088}:80"
+      - "${FILESERVER_PORT:-5080}:80"
       - "${FILESERVER_HTTPS_PORT:-5443}:443"
     environment:
       FILESERVER_CERT_CN: "${FILESERVER_CERT_CN:-localhost}"
