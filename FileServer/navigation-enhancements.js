@@ -83,10 +83,12 @@
     return new Promise(resolve => {
       const started = performance.now();
       let sawLoading = Boolean(loading?.classList.contains('show'));
+      let idleFrames = 0;
       const tick = () => {
         const active = Boolean(loading?.classList.contains('show'));
         sawLoading ||= active;
-        if ((!active && sawLoading) || performance.now() - started > timeout) return resolve();
+        idleFrames = active ? 0 : idleFrames + 1;
+        if ((!active && sawLoading) || (!active && idleFrames >= 4) || performance.now() - started > timeout) return resolve();
         requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
