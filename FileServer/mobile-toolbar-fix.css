@@ -41,17 +41,25 @@
   overflow: visible !important;
 }
 
-.toolbar > #newCreateAction span:not(.fs-icon),
-.toolbar > #uploadFiles span,
-.toolbar > #uploadFolder span {
+/* Hide labels only. Never hide the SVG wrapper itself. */
+.toolbar > #newCreateAction > span:not(.fs-icon),
+.toolbar > #uploadFiles > span:not(.fs-icon),
+.toolbar > #uploadFolder > span:not(.fs-icon) {
   display: none !important;
 }
 
-.toolbar .fs-icon,
-.toolbar .fs-icon svg {
+.toolbar > #newCreateAction > .fs-icon,
+.toolbar > #uploadFiles > .fs-icon,
+.toolbar > #uploadFolder > .fs-icon,
+.toolbar > #newCreateAction > .fs-icon svg,
+.toolbar > #uploadFiles > .fs-icon svg,
+.toolbar > #uploadFolder > .fs-icon svg {
+  display: block !important;
   width: 21px !important;
   height: 21px !important;
-  display: block !important;
+  min-width: 21px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .mobile-create-menu {
