@@ -1,148 +1,164 @@
-(() => {
+(function () {
   'use strict';
 
-  const byId = id => document.getElementById(id);
-  const toastHost = byId('toasts');
+  function byId(id) {
+    return document.getElementById(id);
+  }
 
-  function toast(message) {
-    if (!toastHost) return;
-    const item = document.createElement('div');
+  function addToast(message) {
+    var host = byId('toasts');
+    if (!host) return;
+    var item = document.createElement('div');
     item.textContent = message;
-    toastHost.append(item);
-    setTimeout(() => item.remove(), 3500);
+    host.appendChild(item);
+    window.setTimeout(function () {
+      if (item.parentNode) item.parentNode.removeChild(item);
+    }, 3500);
   }
 
-  function clickOriginal(id) {
-    const button = byId(id);
-    if (!button) {
-      toast('기능 버튼을 찾을 수 없습니다.');
-      return;
-    }
-    button.click();
+  function svg(path) {
+    return '<span class="fs-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' + path + '</svg></span>';
   }
 
-  function createMenu(className, trigger, items) {
+  function createPopup(triggerId, className, items) {
+    var trigger = byId(triggerId);
     if (!trigger) return;
-    document.querySelector(`.${className}`)?.remove();
 
-    const menu = document.createElement('div');
-    menu.className = `mobile-action-menu ${className}`;
+    var old = document.querySelector('.' + className);
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    var menu = document.createElement('div');
+    menu.className = 'mobile-action-menu ' + className;
     menu.setAttribute('role', 'menu');
     menu.hidden = true;
 
-    for (const item of items) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.setAttribute('role', 'menuitem');
-      button.innerHTML = item.html;
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        close();
-        item.action();
-      });
-      menu.append(button);
-    }
-    document.body.append(menu);
-
-    function position() {
-      if (menu.hidden) return;
-      const rect = trigger.getBoundingClientRect();
-      const width = 190;
-      menu.style.width = `${width}px`;
-      menu.style.left = `${Math.max(6, Math.min(rect.left, innerWidth - width - 6))}px`;
-      menu.style.top = `${Math.max(6, Math.min(rect.bottom + 6, innerHeight - menu.offsetHeight - 6))}px`;
-    }
-
-    function open() {
-      document.querySelectorAll('.mobile-action-menu').forEach(other => {
-        if (other !== menu) other.hidden = true;
-      });
-      menu.hidden = false;
-      trigger.setAttribute('aria-expanded', 'true');
-      position();
-    }
-
-    function close() {
+    function closeMenu() {
       menu.hidden = true;
       trigger.setAttribute('aria-expanded', 'false');
     }
 
-    trigger.addEventListener('click', event => {
+    items.forEach(function (item) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('role', 'menuitem');
+      button.innerHTML = item.html;
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeMenu();
+        item.action();
+      });
+      menu.appendChild(button);
+    });
+
+    document.body.appendChild(menu);
+
+    function positionMenu() {
+      if (menu.hidden) return;
+      var rect = trigger.getBoundingClientRect();
+      var width = 190;
+      menu.style.width = width + 'px';
+      menu.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - width - 6)) + 'px';
+      menu.style.top = Math.max(6, Math.min(rect.bottom + 6, window.innerHeight - menu.offsetHeight - 6)) + 'px';
+    }
+
+    trigger.addEventListener('click', function (event) {
       event.preventDefault();
       event.stopPropagation();
-      menu.hidden ? open() : close();
+      var willOpen = menu.hidden;
+      var menus = document.querySelectorAll('.mobile-action-menu');
+      for (var i = 0; i < menus.length; i += 1) menus[i].hidden = true;
+      menu.hidden = !willOpen;
+      trigger.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) positionMenu();
     });
 
-    document.addEventListener('click', event => {
-      if (!menu.contains(event.target) && !trigger.contains(event.target)) close();
+    document.addEventListener('click', function (event) {
+      if (!menu.contains(event.target) && !trigger.contains(event.target)) closeMenu();
     });
-    window.addEventListener('resize', position, { passive: true });
-    document.addEventListener('scroll', close, true);
+    window.addEventListener('resize', positionMenu);
+    document.addEventListener('scroll', closeMenu, true);
   }
 
-  const svg = path => `<span class="fs-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${path}</svg></span>`;
+  function clickElement(id) {
+    var element = byId(id);
+    if (!element) {
+      addToast('기능 요소를 찾지 못했습니다.');
+      return;
+    }
+    element.click();
+  }
 
-  createMenu('mobile-create-menu', byId('newCreateAction'), [
+  createPopup('newCreateAction', 'mobile-create-menu', [
     {
-      html: `${svg('<path d="M3 6.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 8.5h18"/>')}<span>새 폴더</span>`,
-      action: () => clickOriginal('newFolder')
+      html: svg('<path d="M3 6.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 8.5h18"/>') + '<span>새 폴더</span>',
+      action: function () { clickElement('newFolder'); }
     },
     {
-      html: `${svg('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5"/><path d="M10 12h5M10 16h5"/>')}<span>새 파일</span>`,
-      action: () => clickOriginal('newFile')
+      html: svg('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5"/><path d="M10 12h5M10 16h5"/>') + '<span>새 파일</span>',
+      action: function () { clickElement('newFile'); }
     }
   ]);
 
-  createMenu('mobile-upload-menu', byId('newUploadAction'), [
+  createPopup('newUploadAction', 'mobile-upload-menu', [
     {
-      html: `${svg('<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>')}<span>파일 업로드</span>`,
-      action: () => byId('filePicker')?.click()
+      html: svg('<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>') + '<span>파일 업로드</span>',
+      action: function () { clickElement('filePicker'); }
     },
     {
-      html: `${svg('<path d="M3 7h6l1.7 2H21v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 17v-6M9.5 13.5 12 11l2.5 2.5"/>')}<span>폴더 업로드</span>`,
-      action: () => byId('folderPicker')?.click()
+      html: svg('<path d="M3 7h6l1.7 2H21v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 17v-6M9.5 13.5 12 11l2.5 2.5"/>') + '<span>폴더 업로드</span>',
+      action: function () { clickElement('folderPicker'); }
     }
   ]);
 
-  const table = byId('table');
-  const grid = byId('grid');
-  const listButton = byId('listViewAction');
-  const gridButton = byId('gridViewAction');
+  function currentView() {
+    var table = byId('table');
+    var grid = byId('grid');
+    if (grid && !grid.hidden) return 'grid';
+    if (table && !table.hidden) return 'list';
+    return localStorage.getItem('fs-view') === 'grid' ? 'grid' : 'list';
+  }
 
-  function applyView(mode) {
-    mode = mode === 'grid' ? 'grid' : 'list';
+  function updateViewButtons() {
+    var mode = currentView();
+    var listButton = byId('listViewAction');
+    var gridButton = byId('gridViewAction');
+    if (listButton) {
+      listButton.classList.toggle('active', mode === 'list');
+      listButton.setAttribute('aria-pressed', String(mode === 'list'));
+    }
+    if (gridButton) {
+      gridButton.classList.toggle('active', mode === 'grid');
+      gridButton.setAttribute('aria-pressed', String(mode === 'grid'));
+    }
+  }
+
+  function requestView(mode) {
+    if (currentView() !== mode) clickElement('viewToggle');
     localStorage.setItem('fs-view', mode);
-
-    if (table) {
-      table.hidden = mode !== 'list';
-      table.style.setProperty('display', mode === 'list' ? 'table' : 'none', 'important');
-    }
-    if (grid) {
-      grid.hidden = mode !== 'grid';
-      grid.style.setProperty('display', mode === 'grid' ? 'grid' : 'none', 'important');
-    }
-
-    listButton?.classList.toggle('active', mode === 'list');
-    gridButton?.classList.toggle('active', mode === 'grid');
-    listButton?.setAttribute('aria-pressed', String(mode === 'list'));
-    gridButton?.setAttribute('aria-pressed', String(mode === 'grid'));
+    window.setTimeout(updateViewButtons, 0);
   }
 
-  listButton?.addEventListener('click', event => {
-    event.preventDefault();
-    applyView('list');
-  });
-  gridButton?.addEventListener('click', event => {
-    event.preventDefault();
-    applyView('grid');
-  });
-  applyView(localStorage.getItem('fs-view'));
+  var listButton = byId('listViewAction');
+  var gridButton = byId('gridViewAction');
+  if (listButton) {
+    listButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      requestView('list');
+    });
+  }
+  if (gridButton) {
+    gridButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      requestView('grid');
+    });
+  }
+  updateViewButtons();
 
-  const topBar = document.querySelector('.app > .bar:first-child');
-  const sidebar = document.querySelector('.side');
+  var topBar = document.querySelector('.app > .bar:first-child');
+  var sidebar = document.querySelector('.side');
   if (topBar && sidebar) {
-    let toggle = byId('mobileSidebarToggle');
+    var toggle = byId('mobileSidebarToggle');
     if (!toggle) {
       toggle = document.createElement('button');
       toggle.type = 'button';
@@ -152,17 +168,19 @@
       toggle.setAttribute('aria-expanded', 'false');
       toggle.innerHTML = svg('<path d="M4 6h16M4 12h16M4 18h16"/>');
     }
-    topBar.prepend(toggle);
+    topBar.insertBefore(toggle, topBar.firstChild);
 
-    sidebar.id ||= 'mobileSidebar';
+    if (!sidebar.id) sidebar.id = 'mobileSidebar';
     toggle.setAttribute('aria-controls', sidebar.id);
 
-    document.querySelector('.mobile-sidebar-backdrop')?.remove();
-    const backdrop = document.createElement('button');
+    var previousBackdrop = document.querySelector('.mobile-sidebar-backdrop');
+    if (previousBackdrop && previousBackdrop.parentNode) previousBackdrop.parentNode.removeChild(previousBackdrop);
+
+    var backdrop = document.createElement('button');
     backdrop.type = 'button';
     backdrop.className = 'mobile-sidebar-backdrop';
     backdrop.setAttribute('aria-label', '사이드바 닫기');
-    document.body.append(backdrop);
+    document.body.appendChild(backdrop);
 
     function closeSidebar() {
       sidebar.classList.remove('mobile-open');
@@ -171,16 +189,16 @@
       toggle.setAttribute('aria-expanded', 'false');
     }
 
-    toggle.addEventListener('click', event => {
+    toggle.addEventListener('click', function (event) {
       event.preventDefault();
-      const open = !sidebar.classList.contains('mobile-open');
+      var open = !sidebar.classList.contains('mobile-open');
       sidebar.classList.toggle('mobile-open', open);
       backdrop.classList.toggle('show', open);
       document.body.classList.toggle('mobile-sidebar-open', open);
       toggle.setAttribute('aria-expanded', String(open));
     });
     backdrop.addEventListener('click', closeSidebar);
-    document.addEventListener('keydown', event => {
+    document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') closeSidebar();
     });
   }
