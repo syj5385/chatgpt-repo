@@ -49,12 +49,12 @@ services:
       - ./exclusive-view.css:/tmp/exclusive-view.css:ro
       - ./mobile-toolbar-fix.css:/tmp/mobile-toolbar-fix.css:ro
       - ./toolbar-compact.css:/tmp/toolbar-compact.css:ro
-      - ./create-menu.css:/tmp/create-menu.css:ro
+      - ./create-menu.css:/tmp/create-menu-source.css:ro
       - ./icon-theme.css:/tmp/icon-theme.css:ro
       - ./explorer-fix.js:/tmp/explorer-fix.js:ro
       - ./explorer-v2.js:/tmp/explorer-v2.js:ro
       - ./explorer-extras.js:/tmp/explorer-extras.js:ro
-      - ./toolbar-context.js:/tmp/toolbar-context.js:ro
+      - ./toolbar-context.js:/tmp/toolbar-context-source.js:ro
       - ./create-menu.js:/tmp/create-menu-source.js:ro
       - ./icon-theme.js:/tmp/icon-theme.js:ro
       - ./view-mode-fix.js:/tmp/view-mode-fix.js:ro
@@ -99,8 +99,15 @@ services:
 
         chmod 600 /etc/nginx/certs/fileserver.key
         chmod 644 /etc/nginx/certs/fileserver.crt
-        cat /tmp/mobile-responsive-source.css /tmp/icon-theme.css /tmp/navigation-enhancements.css /tmp/exclusive-view.css /tmp/mobile-toolbar-fix.css > /tmp/mobile-responsive.css
-        cat /tmp/create-menu-source.js /tmp/icon-theme.js /tmp/view-mode-fix.js /tmp/navigation-enhancements.js /tmp/exclusive-view.js /tmp/view-display-hardfix.js /tmp/mobile-toolbar-fix.js > /tmp/create-menu.js
+
+        # Keep mobile toolbar assets outside the large compatibility bundle.
+        # This prevents an unrelated UI script error from suppressing the
+        # three primary mobile actions.
+        cat /tmp/mobile-responsive-source.css /tmp/icon-theme.css /tmp/navigation-enhancements.css /tmp/exclusive-view.css > /tmp/mobile-responsive.css
+        cat /tmp/create-menu-source.css /tmp/mobile-toolbar-fix.css > /tmp/create-menu.css
+        cat /tmp/mobile-toolbar-fix.js /tmp/toolbar-context-source.js > /tmp/toolbar-context.js
+        cat /tmp/create-menu-source.js /tmp/icon-theme.js /tmp/view-mode-fix.js /tmp/navigation-enhancements.js /tmp/exclusive-view.js /tmp/view-display-hardfix.js > /tmp/create-menu.js
+
         sed 's#</head>#<link rel="stylesheet" href="/mobile-responsive.css"><link rel="stylesheet" href="/toolbar-compact.css"><link rel="stylesheet" href="/create-menu.css"></head>#; s#<script src="/explorer-v2.js"></script>#<script src="/explorer-fix.js"></script><script src="/explorer-v2.js"></script>#; s#</body>#<script src="/explorer-extras.js"></script><script src="/toolbar-context.js"></script><script src="/create-menu.js"></script></body>#' /tmp/index.html > /tmp/fileserver-index.html
         sed 's#</body>#<script src="/auth-assets/admin-storage.js"></script></body>#' /tmp/auth-ui/admin.html > /tmp/fileserver-admin.html
 
