@@ -15,37 +15,52 @@
     return localStorage.getItem('fs-view') === 'grid' ? 'grid' : 'list';
   }
 
-  function apply(mode = currentMode()) {
-    const inActivity = activity && !activity.hidden;
-
-    if (inActivity) {
-      table.hidden = true;
-      grid.hidden = true;
-    } else if (mode === 'grid') {
-      table.hidden = true;
-      grid.hidden = false;
-    } else {
-      table.hidden = false;
-      grid.hidden = true;
-    }
-
-    toggle.innerHTML = mode === 'grid' ? listIcon : gridIcon;
-    toggle.title = mode === 'grid' ? '목록형 자세히 보기로 전환' : '큰 아이콘 보기로 전환';
-    toggle.setAttribute('aria-label', toggle.title);
-    toggle.dataset.singleViewMode = mode;
+  function setHidden(element, hidden) {
+    if (element.hidden !== hidden) element.hidden = hidden;
   }
 
-  toggle.addEventListener('click', () => {
-    requestAnimationFrame(() => apply(currentMode()));
-  }, true);
+  function apply(mode = currentMode()) {
+    const inActivity = Boolean(activity && !activity.hidden);
 
-  const observer = new MutationObserver(() => apply(currentMode()));
+    if (inActivity) {
+      setHidden(table, true);
+      setHidden(grid, true);
+    } else if (mode === 'grid') {
+      setHidden(table, true);
+      setHidden(grid, false);
+    } else {
+      setHidden(table, false);
+      setHidden(grid, true);
+    }
+
+    const title = mode === 'grid' ? '목록형 자세히 보기로 전환' : '큰 아이콘 보기로 전환';
+    if (toggle.dataset.singleViewMode !== mode) {
+      toggle.innerHTML = mode === 'grid' ? listIcon : gridIcon;
+      toggle.dataset.singleViewMode = mode;
+    }
+    if (toggle.title !== title) toggle.title = title;
+    if (toggle.getAttribute('aria-label') !== title) toggle.setAttribute('aria-label', title);
+  }
+
+  let scheduled = false;
+  function scheduleApply() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      apply(currentMode());
+    });
+  }
+
+  toggle.addEventListener('click', scheduleApply, true);
+
+  const observer = new MutationObserver(scheduleApply);
   observer.observe(table, { attributes: true, attributeFilter: ['hidden'] });
   observer.observe(grid, { attributes: true, attributeFilter: ['hidden'] });
   if (activity) observer.observe(activity, { attributes: true, attributeFilter: ['hidden'] });
 
   window.addEventListener('storage', event => {
-    if (event.key === 'fs-view') apply(currentMode());
+    if (event.key === 'fs-view') scheduleApply();
   });
 
   apply();
