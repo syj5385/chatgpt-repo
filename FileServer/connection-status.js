@@ -71,9 +71,22 @@
 
   function render() {
     if (rendering) return;
-    rendering = true;
 
     const next = resolveState(readRawState());
+    const currentLabel = status.querySelector('.fs-connection-label');
+    const currentDot = status.querySelector('.fs-connection-dot');
+
+    if (
+      currentDot &&
+      currentLabel &&
+      currentLabel.textContent === next.label &&
+      status.dataset.connectionState === next.key
+    ) {
+      return;
+    }
+
+    rendering = true;
+
     const dot = document.createElement('span');
     dot.className = 'fs-connection-dot';
     dot.setAttribute('aria-hidden', 'true');
