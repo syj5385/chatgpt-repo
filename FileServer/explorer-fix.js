@@ -1,27 +1,29 @@
 (() => {
   'use strict';
 
-  // explorer-v2.js references E.closeDrawer, but the element was omitted from
-  // its local element map. Supply that single missing lookup through a
-  // non-enumerable, one-shot prototype getter so initialization can finish.
-  // The getter removes itself immediately after the explorer reads it.
-  if (!Object.prototype.hasOwnProperty('closeDrawer')) {
+  // explorer-v2.js reads E.closeDrawer even though closeDrawer is missing from
+  // its local element map. Provide the value without a getter/setter so Safari
+  // WebIDL conversions cannot trigger user code while constructing Headers,
+  // Requests, URLs, or other platform objects.
+  const closeDrawer = document.getElementById('closeDrawer');
+  if (!closeDrawer) return;
+
+  if (!Object.prototype.hasOwnProperty.call(Object.prototype, 'closeDrawer')) {
     Object.defineProperty(Object.prototype, 'closeDrawer', {
       configurable: true,
       enumerable: false,
-      get() {
-        const element = document.getElementById('closeDrawer');
-        delete Object.prototype.closeDrawer;
-        return element;
-      },
-      set(value) {
-        Object.defineProperty(this, 'closeDrawer', {
-          configurable: true,
-          enumerable: true,
-          writable: true,
-          value
-        });
-      }
+      writable: true,
+      value: closeDrawer
     });
+
+    // explorer-v2 binds synchronously when its script executes immediately
+    // after this one. Remove the temporary compatibility property afterward.
+    window.setTimeout(() => {
+      try {
+        delete Object.prototype.closeDrawer;
+      } catch (error) {
+        console.error('Failed to remove closeDrawer compatibility property', error);
+      }
+    }, 0);
   }
 })();
