@@ -1,6 +1,26 @@
-/* Stable three-action toolbar on narrow screens. */
+/* Icon-only primary toolbar. Keep it visible at every viewport width. */
+.toolbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-height: 48px !important;
+  height: auto !important;
+  padding: 6px 8px !important;
+  overflow: visible !important;
+}
+
 .toolbar > #newFolder,
-.toolbar > #newFile {
+.toolbar > #newFile,
+.toolbar > #download,
+.toolbar > #move,
+.toolbar > #copy,
+.toolbar > #archive,
+.toolbar > #remove,
+.toolbar > #details,
+.toolbar > #viewToggle,
+.toolbar > #refresh,
+.toolbar > .separator,
+.toolbar > .grow {
   display: none !important;
 }
 
@@ -8,24 +28,30 @@
 .toolbar > #uploadFiles,
 .toolbar > #uploadFolder {
   display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 42px !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+  height: 38px !important;
+  padding: 0 !important;
   visibility: visible !important;
   opacity: 1 !important;
+  overflow: visible !important;
 }
 
-#newCreateAction {
-  gap: 6px;
+.toolbar > #newCreateAction span:not(.fs-icon),
+.toolbar > #uploadFiles span,
+.toolbar > #uploadFolder span {
+  display: none !important;
 }
 
-#newCreateAction .create-label {
-  display: inline;
-}
-
-#newCreateAction .create-chevron {
-  width: 14px;
-  opacity: .65;
+.toolbar .fs-icon,
+.toolbar .fs-icon svg {
+  width: 21px !important;
+  height: 21px !important;
+  display: block !important;
 }
 
 .mobile-create-menu {
@@ -64,44 +90,9 @@
   outline: none;
 }
 
-.mobile-create-menu .fs-icon {
-  flex: 0 0 20px;
-}
-
 @media (max-width: 780px) {
   .toolbar {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 6px !important;
-    width: 100%;
-    min-height: 52px;
-    height: auto !important;
-    padding: 7px 8px !important;
-    overflow: visible !important;
-  }
-
-  .toolbar > #newCreateAction,
-  .toolbar > #uploadFiles,
-  .toolbar > #uploadFolder {
     width: 100% !important;
-    height: 38px !important;
-    padding: 0 6px !important;
-  }
-
-  .toolbar > #newCreateAction span:not(.fs-icon),
-  .toolbar > #uploadFiles span,
-  .toolbar > #uploadFolder span {
-    display: none !important;
-  }
-
-  #newCreateAction .create-chevron {
-    display: inline-flex !important;
-  }
-}
-
-@media (max-width: 340px) {
-  .toolbar {
-    gap: 4px !important;
-    padding-inline: 5px !important;
+    padding-inline: max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right)) !important;
   }
 }
