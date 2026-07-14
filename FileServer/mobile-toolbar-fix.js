@@ -1,23 +1,22 @@
 (function () {
   'use strict';
 
-  function byId(id) {
-    return document.getElementById(id);
-  }
+  function byId(id) { return document.getElementById(id); }
+  function svg(path) { return '<span class="fs-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' + path + '</svg></span>'; }
 
-  function addToast(message) {
+  function toast(message) {
     var host = byId('toasts');
     if (!host) return;
     var item = document.createElement('div');
     item.textContent = message;
     host.appendChild(item);
-    window.setTimeout(function () {
-      if (item.parentNode) item.parentNode.removeChild(item);
-    }, 3500);
+    window.setTimeout(function () { if (item.parentNode) item.parentNode.removeChild(item); }, 3500);
   }
 
-  function svg(path) {
-    return '<span class="fs-icon" aria-hidden="true"><svg viewBox="0 0 24 24">' + path + '</svg></span>';
+  function clickElement(id) {
+    var element = byId(id);
+    if (!element) return toast('기능 요소를 찾지 못했습니다.');
+    element.click();
   }
 
   function createPopup(triggerId, className, items) {
@@ -50,7 +49,6 @@
       });
       menu.appendChild(button);
     });
-
     document.body.appendChild(menu);
 
     function positionMenu() {
@@ -80,84 +78,48 @@
     document.addEventListener('scroll', closeMenu, true);
   }
 
-  function clickElement(id) {
-    var element = byId(id);
-    if (!element) {
-      addToast('기능 요소를 찾지 못했습니다.');
-      return;
-    }
-    element.click();
-  }
+  function setupToolbar() {
+    createPopup('newCreateAction', 'mobile-create-menu', [
+      { html: svg('<path d="M3 6.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 8.5h18"/>') + '<span>새 폴더</span>', action: function () { clickElement('newFolder'); } },
+      { html: svg('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5"/><path d="M10 12h5M10 16h5"/>') + '<span>새 파일</span>', action: function () { clickElement('newFile'); } }
+    ]);
 
-  createPopup('newCreateAction', 'mobile-create-menu', [
-    {
-      html: svg('<path d="M3 6.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 8.5h18"/>') + '<span>새 폴더</span>',
-      action: function () { clickElement('newFolder'); }
-    },
-    {
-      html: svg('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5"/><path d="M10 12h5M10 16h5"/>') + '<span>새 파일</span>',
-      action: function () { clickElement('newFile'); }
-    }
-  ]);
+    createPopup('newUploadAction', 'mobile-upload-menu', [
+      { html: svg('<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>') + '<span>파일 업로드</span>', action: function () { clickElement('filePicker'); } },
+      { html: svg('<path d="M3 7h6l1.7 2H21v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 17v-6M9.5 13.5 12 11l2.5 2.5"/>') + '<span>폴더 업로드</span>', action: function () { clickElement('folderPicker'); } }
+    ]);
 
-  createPopup('newUploadAction', 'mobile-upload-menu', [
-    {
-      html: svg('<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>') + '<span>파일 업로드</span>',
-      action: function () { clickElement('filePicker'); }
-    },
-    {
-      html: svg('<path d="M3 7h6l1.7 2H21v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 17v-6M9.5 13.5 12 11l2.5 2.5"/>') + '<span>폴더 업로드</span>',
-      action: function () { clickElement('folderPicker'); }
-    }
-  ]);
-
-  function currentView() {
-    var table = byId('table');
-    var grid = byId('grid');
-    if (grid && !grid.hidden) return 'grid';
-    if (table && !table.hidden) return 'list';
-    return localStorage.getItem('fs-view') === 'grid' ? 'grid' : 'list';
-  }
-
-  function updateViewButtons() {
-    var mode = currentView();
     var listButton = byId('listViewAction');
     var gridButton = byId('gridViewAction');
-    if (listButton) {
-      listButton.classList.toggle('active', mode === 'list');
-      listButton.setAttribute('aria-pressed', String(mode === 'list'));
+    var viewToggle = byId('viewToggle');
+
+    function currentView() {
+      var grid = byId('grid');
+      return grid && !grid.hidden ? 'grid' : 'list';
     }
-    if (gridButton) {
-      gridButton.classList.toggle('active', mode === 'grid');
-      gridButton.setAttribute('aria-pressed', String(mode === 'grid'));
+
+    function updateViewButtons() {
+      var mode = currentView();
+      if (listButton) listButton.classList.toggle('active', mode === 'list');
+      if (gridButton) gridButton.classList.toggle('active', mode === 'grid');
     }
+
+    function requestView(mode) {
+      if (!viewToggle) return toast('보기 전환 기능을 찾지 못했습니다.');
+      if (currentView() !== mode) viewToggle.click();
+      window.setTimeout(updateViewButtons, 0);
+    }
+
+    if (listButton) listButton.addEventListener('click', function (event) { event.preventDefault(); requestView('list'); });
+    if (gridButton) gridButton.addEventListener('click', function (event) { event.preventDefault(); requestView('grid'); });
+    updateViewButtons();
   }
 
-  function requestView(mode) {
-    if (currentView() !== mode) clickElement('viewToggle');
-    localStorage.setItem('fs-view', mode);
-    window.setTimeout(updateViewButtons, 0);
-  }
+  function setupSidebar() {
+    var topBar = document.querySelector('.app > .bar:first-child');
+    var sidebar = document.querySelector('.side');
+    if (!topBar || !sidebar) return;
 
-  var listButton = byId('listViewAction');
-  var gridButton = byId('gridViewAction');
-  if (listButton) {
-    listButton.addEventListener('click', function (event) {
-      event.preventDefault();
-      requestView('list');
-    });
-  }
-  if (gridButton) {
-    gridButton.addEventListener('click', function (event) {
-      event.preventDefault();
-      requestView('grid');
-    });
-  }
-  updateViewButtons();
-
-  var topBar = document.querySelector('.app > .bar:first-child');
-  var sidebar = document.querySelector('.side');
-  if (topBar && sidebar) {
     var toggle = byId('mobileSidebarToggle');
     if (!toggle) {
       toggle = document.createElement('button');
@@ -198,8 +160,44 @@
       toggle.setAttribute('aria-expanded', String(open));
     });
     backdrop.addEventListener('click', closeSidebar);
-    document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') closeSidebar();
-    });
   }
+
+  function moveToolsToBottom() {
+    var sidebar = document.querySelector('.side');
+    var shares = byId('sharesButton');
+    var theme = byId('themeButton');
+    if (!sidebar || !shares || !theme) return;
+
+    var headings = sidebar.getElementsByTagName('small');
+    var toolsHeading = null;
+    for (var i = 0; i < headings.length; i += 1) {
+      if (headings[i].textContent.replace(/^\s+|\s+$/g, '') === '도구') {
+        toolsHeading = headings[i];
+        break;
+      }
+    }
+    if (!toolsHeading) return;
+
+    sidebar.appendChild(toolsHeading);
+    sidebar.appendChild(shares);
+    sidebar.appendChild(theme);
+  }
+
+  function initializeAfterExplorer() {
+    var attempts = 0;
+    var timer = window.setInterval(function () {
+      attempts += 1;
+      var ready = byId('body') && byId('grid') && byId('newFolder') && byId('newFile') && byId('viewToggle');
+      var connected = byId('conn') && byId('conn').textContent !== 'Ready';
+      if ((ready && connected) || attempts >= 40) {
+        window.clearInterval(timer);
+        try { setupToolbar(); } catch (error) { console.error('toolbar setup failed', error); }
+        try { setupSidebar(); } catch (error) { console.error('sidebar setup failed', error); }
+        try { moveToolsToBottom(); } catch (error) { console.error('tool section move failed', error); }
+      }
+    }, 100);
+  }
+
+  if (document.readyState === 'complete') initializeAfterExplorer();
+  else window.addEventListener('load', initializeAfterExplorer);
 })();
