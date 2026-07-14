@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from . import extended, main
 
 app = extended.app
+PUBLIC_USERNAME = "_public_system"
 PUBLIC_UPLOAD_MAX_BYTES = max(
     1024 * 1024,
     int(os.getenv("FILESERVER_PUBLIC_UPLOAD_MAX_BYTES", str(2 * 1024**3))),
@@ -41,6 +42,32 @@ def initialize_full_features() -> None:
             CREATE INDEX IF NOT EXISTS idx_file_locks_expires ON file_locks(expires_at);
             """
         )
+        if main.ACCESS_MODE == "public":
+            public_user = connection.execute(
+                "SELECT id FROM users WHERE username = ? COLLATE NOCASE",
+                (PUBLIC_USERNAME,),
+            ).fetchone()
+            if public_user is None:
+                now = main.iso()
+                cursor = connection.execute(
+                    """
+                    INSERT INTO users (
+                        username, password_hash, role, status, must_change_password,
+                        created_at, approved_at
+                    ) VALUES (?, ?, 'user', 'approved', 0, ?, ?)
+                    """,
+                    (
+                        PUBLIC_USERNAME,
+                        main.PASSWORD_HASHER.hash(secrets.token_urlsafe(64)),
+                        now,
+                        now,
+                    ),
+                )
+                connection.execute(
+                    "INSERT OR IGNORE INTO storage_profiles(user_id, quota_bytes, created_at, updated_at) VALUES (?, 0, ?, ?)",
+                    (cursor.lastrowid, now, now),
+                )
+            extended.ensure_user_directories(PUBLIC_USERNAME)
         connection.execute("DELETE FROM file_locks WHERE expires_at <= ?", (main.iso(),))
         connection.commit()
 
@@ -54,6 +81,34 @@ def _initialize_all() -> None:
 
 
 main.initialize_database = _initialize_all
+
+
+_original_require_csrf = main.require_csrf
+_original_user_roots = extended.user_roots
+_original_ensure_quota = extended.ensure_quota
+
+
+def _mode_aware_csrf(request: Request, session: dict[str, Any], supplied: str | None = None) -> None:
+    if main.ACCESS_MODE == "public":
+        return
+    _original_require_csrf(request, session, supplied)
+
+
+def _mode_aware_roots(session: dict[str, Any]) -> tuple[str, ...]:
+    if main.ACCESS_MODE == "public":
+        return ("",)
+    return _original_user_roots(session)
+
+
+def _mode_aware_quota(session: dict[str, Any], incoming: int, replacing: int = 0) -> None:
+    if main.ACCESS_MODE == "public":
+        return
+    _original_ensure_quota(session, incoming, replacing)
+
+
+main.require_csrf = _mode_aware_csrf
+extended.user_roots = _mode_aware_roots
+extended.ensure_quota = _mode_aware_quota
 
 
 def get_lock(path: str) -> dict[str, Any] | None:
@@ -86,6 +141,34 @@ def _locked_internal_authorize(request: Request, admin_only: bool = False) -> Re
 
 
 extended.internal_authorize = _locked_internal_authorize
+
+
+app.router.routes = [
+    route for route in app.router.routes
+    if getattr(route, "path", None) not in {"/share/{token}", "/api/auth/config"}
+]
+
+
+@app.get("/api/auth/config")
+def full_auth_config(request: Request, response: Response) -> dict[str, Any]:
+    if main.ACCESS_MODE == "public" and main.get_session(request, required=False) is None:
+        with closing(main.connect()) as connection:
+            user = connection.execute(
+                "SELECT id FROM users WHERE username = ? COLLATE NOCASE AND status = 'approved'",
+                (PUBLIC_USERNAME,),
+            ).fetchone()
+            if user is None:
+                raise HTTPException(status_code=503, detail="공개 모드 계정을 초기화하지 못했습니다.")
+            raw_token, _, expires_at = main.create_session(connection, user["id"], True, request)
+            connection.commit()
+        main.set_session_cookie(response, raw_token, True, expires_at)
+    return {
+        "mode": main.ACCESS_MODE,
+        "authentication_required": main.ACCESS_MODE == "private",
+        "registration_enabled": main.ACCESS_MODE == "private",
+        "password_min_length": main.PASSWORD_MIN_LENGTH,
+        "remember_days": main.REMEMBER_DAYS,
+    }
 
 
 @app.get("/api/files/lock")
@@ -130,12 +213,6 @@ def unlock_file(path: str, request: Request, session: dict[str, Any] = Depends(m
         connection.commit()
     extended.record_activity(session["id"], "FILE_UNLOCKED", relative)
     return Response(status_code=204)
-
-
-app.router.routes = [
-    route for route in app.router.routes
-    if getattr(route, "path", None) != "/share/{token}"
-]
 
 
 def upload_share_html(token: str, row: Any, message: str = "", success: bool = False) -> str:
