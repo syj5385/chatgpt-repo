@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FileServer 로그인</title>
+  <link rel="stylesheet" href="/auth-assets/auth.css">
+</head>
+<body>
+  <main class="auth-shell">
+    <div class="brand"><span>📁</span><span>FileServer</span></div>
+    <section class="card">
+      <h1>로그인</h1>
+      <p class="sub">관리자가 승인한 사용자 계정으로 FileServer에 접속합니다.</p>
+      <form id="form">
+        <div class="field"><label for="username">사용자 ID</label><input id="username" autocomplete="username" required maxlength="32"></div>
+        <div class="field"><label for="password">비밀번호</label><input id="password" type="password" autocomplete="current-password" required maxlength="128"></div>
+        <label class="check"><input id="remember" type="checkbox">이 기기에서 자동 로그인</label>
+        <button id="submit" class="button" type="submit">로그인</button>
+      </form>
+      <div id="message" class="message" role="alert"></div>
+      <div class="links"><a href="/register">사용자 등록</a></div>
+    </section>
+  </main>
+<script>
+(() => {
+  'use strict';
+  const form = document.getElementById('form');
+  const submit = document.getElementById('submit');
+  const message = document.getElementById('message');
+  const params = new URLSearchParams(location.search);
+  const requested = params.get('next') || '/';
+  const next = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/';
+
+  function show(text, kind = 'error') {
+    message.textContent = text;
+    message.className = `message show ${kind}`;
+  }
+
+  async function json(response) {
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.detail || `요청 실패 (HTTP ${response.status})`);
+    return body;
+  }
+
+  async function initialize() {
+    try {
+      const config = await json(await fetch('/api/auth/config', { cache: 'no-store' }));
+      if (config.mode === 'public') return location.replace('/');
+      const me = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (me.ok) {
+        const data = await me.json();
+        return location.replace(data.user?.must_change_password ? '/change-password' : next);
+      }
+    } catch (error) {
+      show(error.message);
+    }
+  }
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    submit.disabled = true;
+    message.className = 'message';
+    try {
+      const data = await json(await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value,
+          password: document.getElementById('password').value,
+          remember: document.getElementById('remember').checked
+        })
+      }));
+      location.replace(data.must_change_password ? '/change-password' : next);
+    } catch (error) {
+      show(error.message);
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  initialize();
+})();
+</script>
+</body>
+</html>
