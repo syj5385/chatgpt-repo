@@ -15,6 +15,16 @@
     'application/xhtml+xml',
     'image/svg+xml'
   ]);
+  const DRAG_MIME_BY_EXTENSION = {
+    txt: 'text/plain', md: 'text/markdown', html: 'text/html', htm: 'text/html',
+    css: 'text/css', js: 'text/javascript', mjs: 'text/javascript', json: 'application/json',
+    xml: 'application/xml', csv: 'text/csv', pdf: 'application/pdf', svg: 'image/svg+xml',
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+    webp: 'image/webp', bmp: 'image/bmp', ico: 'image/x-icon', avif: 'image/avif',
+    mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4',
+    aac: 'audio/aac', mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+    m4v: 'video/x-m4v', ogv: 'video/ogg', zip: 'application/zip'
+  };
 
   const style = document.createElement('style');
   style.textContent = `
@@ -42,6 +52,8 @@
     .fs-editor-foot{min-height:56px;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 14px;border-top:1px solid #e5e5e5}
     .fs-editor-button{height:36px;min-width:86px;border:1px solid #aaa;border-radius:7px;background:#fff;cursor:pointer}
     .fs-editor-button.primary{background:#0067c0;border-color:#0067c0;color:#fff}
+    tr.fs-drag-download{cursor:grab}
+    tr.fs-drag-download:active,tr.fs-dragging-download{cursor:grabbing;opacity:.72}
     @media(max-width:620px){.fs-action-grid{grid-template-columns:1fr}.fs-action-choice{min-height:60px;flex-direction:row}.fs-action-dialog{max-height:92vh;overflow:auto}}
   `;
   document.head.append(style);
@@ -58,6 +70,10 @@
   function fileUrl(fileName) {
     const path = [currentDirectory(), fileName].filter(Boolean).join('/');
     return `/files/${encodePath(path)}`;
+  }
+
+  function absoluteFileUrl(fileName) {
+    return new URL(fileUrl(fileName), location.href).href;
   }
 
   function extension(fileName) {
@@ -89,6 +105,38 @@
     return mime.startsWith('text/') || mime.startsWith('image/') ||
       mime.startsWith('audio/') || mime.startsWith('video/') ||
       OPENABLE_MIME_TYPES.has(mime) || OPENABLE_EXTENSIONS.has(extension(fileName));
+  }
+
+  function isDesktopChromium() {
+    const ua = navigator.userAgent || '';
+    const mobileDevice = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua) ||
+      (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+    const finePointer = window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false;
+    const brands = navigator.userAgentData?.brands?.map(item => item.brand).join(' ') || '';
+    const chromium = /Chromium|Google Chrome|Microsoft Edge|Opera/i.test(brands) ||
+      /Chrome|Chromium|Edg|OPR/i.test(ua);
+    return !mobileDevice && finePointer && chromium;
+  }
+
+  function isFolderRow(row) {
+    return row?.children?.[2]?.textContent.trim() === 'File folder';
+  }
+
+  function dragMimeType(fileName) {
+    return DRAG_MIME_BY_EXTENSION[extension(fileName)] || 'application/octet-stream';
+  }
+
+  function markDesktopDraggableRows() {
+    if (!isDesktopChromium()) return;
+    document.querySelectorAll('tr.item').forEach(row => {
+      const downloadable = !isFolderRow(row);
+      row.draggable = downloadable;
+      row.classList.toggle('fs-drag-download', downloadable);
+      if (downloadable) {
+        row.title = '파일 탐색기 또는 Finder로 끌어 다운로드';
+        row.setAttribute('aria-description', '데스크톱 파일 탐색기로 끌어서 다운로드할 수 있습니다.');
+      }
+    });
   }
 
   async function getMetadata(fileName) {
@@ -303,11 +351,38 @@
   document.addEventListener('dblclick', event => {
     const row = event.target.closest('tr.item');
     if (!row) return;
-    const typeCell = row.children[2];
-    if (typeCell?.textContent.trim() === 'File folder') return;
+    if (isFolderRow(row)) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
     showFileActions(row.dataset.name);
   }, true);
+
+  if (isDesktopChromium()) {
+    const body = document.getElementById('body');
+    if (body) {
+      new MutationObserver(markDesktopDraggableRows).observe(body, { childList: true });
+      markDesktopDraggableRows();
+    }
+
+    document.addEventListener('dragstart', event => {
+      const row = event.target.closest('tr.fs-drag-download');
+      if (!row || isFolderRow(row) || !event.dataTransfer) return;
+
+      const fileName = row.dataset.name;
+      const safeName = fileName.replace(/[:\r\n]/g, '_');
+      const absoluteUrl = absoluteFileUrl(fileName);
+      const mimeType = dragMimeType(fileName);
+
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('DownloadURL', `${mimeType}:${safeName}:${absoluteUrl}`);
+      event.dataTransfer.setData('text/uri-list', absoluteUrl);
+      event.dataTransfer.setData('text/plain', absoluteUrl);
+      row.classList.add('fs-dragging-download');
+    });
+
+    document.addEventListener('dragend', event => {
+      event.target.closest('tr.fs-drag-download')?.classList.remove('fs-dragging-download');
+    });
+  }
 })();
