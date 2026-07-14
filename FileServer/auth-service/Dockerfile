@@ -16,7 +16,9 @@ RUN pip install --no-cache-dir \
 
 COPY app ./app
 
-RUN mkdir -p /data /files
+RUN mkdir -p /data /files \
+    && python -m py_compile app/*.py \
+    && python -c "from app.full import app; paths={getattr(route, 'path', '') for route in app.routes}; required={'/health','/api/files/workspace','/api/files/uploads/init','/api/files/shares','/api/files/lock','/share/{token}'}; missing=required-paths; assert not missing, f'Missing routes: {sorted(missing)}'"
 
 EXPOSE 8000
 
