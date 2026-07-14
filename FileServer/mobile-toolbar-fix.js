@@ -171,3 +171,66 @@
 
   install();
 })();
+
+(() => {
+  'use strict';
+
+  const topBar = document.querySelector('.app > .bar:first-child');
+  const title = topBar?.querySelector('.title');
+  const sidebar = document.querySelector('.side');
+  if (!topBar || !title || !sidebar) return;
+
+  let toggle = document.getElementById('mobileSidebarToggle');
+  if (!toggle) {
+    toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.id = 'mobileSidebarToggle';
+    toggle.title = '사이드바 열기';
+    toggle.setAttribute('aria-label', '사이드바 열기');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.innerHTML = '<span class="fs-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span>';
+    title.insertAdjacentElement('afterend', toggle);
+  }
+
+  sidebar.id ||= 'mobileSidebar';
+  toggle.setAttribute('aria-controls', sidebar.id);
+
+  document.querySelector('.mobile-sidebar-backdrop')?.remove();
+  const backdrop = document.createElement('button');
+  backdrop.type = 'button';
+  backdrop.className = 'mobile-sidebar-backdrop';
+  backdrop.setAttribute('aria-label', '사이드바 닫기');
+  document.body.append(backdrop);
+
+  function openSidebar() {
+    sidebar.classList.add('mobile-open');
+    backdrop.classList.add('show');
+    document.body.classList.add('mobile-sidebar-open');
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeSidebar() {
+    sidebar.classList.remove('mobile-open');
+    backdrop.classList.remove('show');
+    document.body.classList.remove('mobile-sidebar-open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  toggle.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    sidebar.classList.contains('mobile-open') ? closeSidebar() : openSidebar();
+  });
+  backdrop.addEventListener('click', closeSidebar);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeSidebar();
+  });
+  sidebar.addEventListener('click', event => {
+    if (event.target.closest('button')) closeSidebar();
+  });
+
+  const media = matchMedia('(min-width: 781px)');
+  media.addEventListener?.('change', event => {
+    if (event.matches) closeSidebar();
+  });
+})();
