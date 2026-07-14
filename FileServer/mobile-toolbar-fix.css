@@ -106,6 +106,32 @@
   order: 5;
 }
 
+/* Keep storage information above the tools section even if JavaScript fails. */
+.side {
+  display: flex;
+  flex-direction: column;
+}
+
+.side > * {
+  flex-shrink: 0;
+}
+
+.side > .quota {
+  order: 90;
+}
+
+.side > small:nth-of-type(2) {
+  order: 100;
+}
+
+.side > #sharesButton {
+  order: 101;
+}
+
+.side > #themeButton {
+  order: 102;
+}
+
 #mobileSidebarToggle {
   display: none;
   width: 34px;
@@ -172,7 +198,8 @@
   }
 
   .side {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
     position: fixed;
     top: 0;
     bottom: 0;
