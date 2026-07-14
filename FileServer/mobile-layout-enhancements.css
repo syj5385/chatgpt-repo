@@ -1,0 +1,118 @@
+/* Swap search/path positions, remove size filter, and add mobile sidebar drawer. */
+
+#sizeFilter {
+  display: none !important;
+}
+
+.location-bar .search {
+  order: 4;
+}
+
+.location-bar .address {
+  order: 5;
+}
+
+#mobileSidebarToggle {
+  display: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+#mobileSidebarToggle:hover,
+#mobileSidebarToggle:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+
+#mobileSidebarToggle .fs-icon,
+#mobileSidebarToggle svg {
+  width: 21px;
+  height: 21px;
+  display: block;
+}
+
+.mobile-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 780px) {
+  .location-bar {
+    grid-template-columns: 34px 34px 34px minmax(0, 1fr) !important;
+    grid-template-rows: 38px 38px !important;
+  }
+
+  .location-bar .search {
+    grid-column: 4 / -1 !important;
+    grid-row: 1 !important;
+    order: initial;
+  }
+
+  .location-bar .address {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    order: initial;
+  }
+
+  #mobileSidebarToggle {
+    display: inline-flex !important;
+    flex: 0 0 34px;
+  }
+
+  .app > .bar:first-child {
+    gap: 6px;
+  }
+
+  .side {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 260;
+    width: min(290px, 84vw);
+    max-width: 84vw;
+    padding-top: calc(12px + env(safe-area-inset-top));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    transform: translateX(-105%);
+    transition: transform .22s ease;
+    box-shadow: 14px 0 36px var(--shadow);
+    border-right: 1px solid var(--line);
+    background: var(--soft);
+    overflow-y: auto;
+    visibility: hidden;
+  }
+
+  .side.mobile-open {
+    transform: translateX(0);
+    visibility: visible;
+  }
+
+  .mobile-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    border: 0;
+    background: #0006;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s ease, visibility .2s ease;
+  }
+
+  .mobile-sidebar-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  body.mobile-sidebar-open {
+    overflow: hidden;
+  }
+}
