@@ -12,6 +12,7 @@ services:
       FILESERVER_CERT_CN: "${FILESERVER_CERT_CN:-localhost}"
       FILESERVER_CERT_SAN: "${FILESERVER_CERT_SAN:-DNS:localhost,IP:127.0.0.1}"
       FILESERVER_CERT_DAYS: "${FILESERVER_CERT_DAYS:-825}"
+      FILESERVER_HTTPS_REDIRECT_PORT: "${FILESERVER_HTTPS_PORT:-18443}"
     volumes:
       - ./index.html:/tmp/index.html:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
@@ -23,6 +24,18 @@ services:
       - |
         set -e
         mkdir -p /files/Trash /tmp/nginx-client-body /etc/nginx/certs
+
+        case "$${FILESERVER_HTTPS_REDIRECT_PORT}" in
+          ''|*[!0-9]*)
+            echo "FILESERVER_HTTPS_PORT must be a numeric TCP port" >&2
+            exit 1
+            ;;
+        esac
+
+        if [ "$${FILESERVER_HTTPS_REDIRECT_PORT}" -lt 1 ] || [ "$${FILESERVER_HTTPS_REDIRECT_PORT}" -gt 65535 ]; then
+          echo "FILESERVER_HTTPS_PORT must be between 1 and 65535" >&2
+          exit 1
+        fi
 
         if [ ! -s /etc/nginx/certs/fileserver.crt ] || [ ! -s /etc/nginx/certs/fileserver.key ]; then
           echo "Generating a self-signed TLS certificate for $${FILESERVER_CERT_CN}"
@@ -37,7 +50,10 @@ services:
 
         chmod 600 /etc/nginx/certs/fileserver.key
         chmod 644 /etc/nginx/certs/fileserver.crt
-        ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+        rm -f /etc/nginx/sites-enabled/default
+        sed "s/__HTTPS_REDIRECT_PORT__/$${FILESERVER_HTTPS_REDIRECT_PORT}/g" \
+          /etc/nginx/sites-available/default \
+          > /etc/nginx/sites-enabled/default
         nginx -t
         exec nginx -g 'daemon off;'
     restart: unless-stopped
