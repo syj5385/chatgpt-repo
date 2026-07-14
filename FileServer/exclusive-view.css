@@ -1,0 +1,25 @@
+/* Show exactly one file presentation at a time. */
+#content.fs-view-list #table {
+  display: table !important;
+}
+
+#content.fs-view-list #grid {
+  display: none !important;
+}
+
+#content.fs-view-grid #table {
+  display: none !important;
+}
+
+#content.fs-view-grid #grid {
+  display: grid !important;
+}
+
+#content.fs-view-activity #table,
+#content.fs-view-activity #grid {
+  display: none !important;
+}
+
+#content.fs-view-activity #activityView {
+  display: block !important;
+}
