@@ -47,11 +47,13 @@ services:
       - ./mobile-responsive.css:/tmp/mobile-responsive.css:ro
       - ./toolbar-compact.css:/tmp/toolbar-compact.css:ro
       - ./create-menu.css:/tmp/create-menu.css:ro
+      - ./icon-theme.css:/tmp/icon-theme.css:ro
       - ./explorer-fix.js:/tmp/explorer-fix.js:ro
       - ./explorer-v2.js:/tmp/explorer-v2.js:ro
       - ./explorer-extras.js:/tmp/explorer-extras.js:ro
       - ./toolbar-context.js:/tmp/toolbar-context.js:ro
       - ./create-menu.js:/tmp/create-menu.js:ro
+      - ./icon-theme.js:/tmp/icon-theme.js:ro
       - ./auth-client.js:/tmp/auth-client.js:ro
       - ./auth-ui:/tmp/auth-ui:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
@@ -89,7 +91,7 @@ services:
 
         chmod 600 /etc/nginx/certs/fileserver.key
         chmod 644 /etc/nginx/certs/fileserver.crt
-        sed 's#</head>#<link rel="stylesheet" href="/mobile-responsive.css"><link rel="stylesheet" href="/toolbar-compact.css"><link rel="stylesheet" href="/create-menu.css"></head>#; s#<script src="/explorer-v2.js"></script>#<script src="/explorer-fix.js"></script><script src="/explorer-v2.js"></script>#; s#</body>#<script src="/explorer-extras.js"></script><script src="/toolbar-context.js"></script><script src="/create-menu.js"></script></body>#' /tmp/index.html > /tmp/fileserver-index.html
+        sed 's#</head>#<link rel="stylesheet" href="/mobile-responsive.css"><link rel="stylesheet" href="/toolbar-compact.css"><link rel="stylesheet" href="/create-menu.css"><link rel="stylesheet" href="/icon-theme.css"></head>#; s#<script src="/explorer-v2.js"></script>#<script src="/explorer-fix.js"></script><script src="/explorer-v2.js"></script>#; s#</body>#<script src="/explorer-extras.js"></script><script src="/toolbar-context.js"></script><script src="/create-menu.js"></script><script src="/icon-theme.js"></script></body>#' /tmp/index.html > /tmp/fileserver-index.html
         sed 's#</body>#<script src="/auth-assets/admin-storage.js"></script></body>#' /tmp/auth-ui/admin.html > /tmp/fileserver-admin.html
 
         rm -f /etc/nginx/sites-enabled/default
