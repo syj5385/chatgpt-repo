@@ -28,13 +28,13 @@ services:
       auth:
         condition: service_healthy
     ports:
-      - "${FILESERVER_PORT:-18080}:80"
-      - "${FILESERVER_HTTPS_PORT:-18443}:443"
+      - "${FILESERVER_PORT:-5088}:80"
+      - "${FILESERVER_HTTPS_PORT:-5443}:443"
     environment:
       FILESERVER_CERT_CN: "${FILESERVER_CERT_CN:-localhost}"
       FILESERVER_CERT_SAN: "${FILESERVER_CERT_SAN:-DNS:localhost,IP:127.0.0.1}"
       FILESERVER_CERT_DAYS: "${FILESERVER_CERT_DAYS:-825}"
-      FILESERVER_HTTPS_REDIRECT_PORT: "${FILESERVER_HTTPS_PORT:-18443}"
+      FILESERVER_HTTPS_REDIRECT_PORT: "${FILESERVER_HTTPS_PORT:-5443}"
     volumes:
       - ./index.html:/tmp/index.html:ro
       - ./file-actions.js:/tmp/file-actions.js:ro
