@@ -24,7 +24,20 @@ docker compose -f config.yaml up -d --build --force-recreate --remove-orphans
 echo "[3/3] 컨테이너 상태를 확인합니다."
 docker compose -f config.yaml ps
 
+HTTP_BIND="$(docker compose -f config.yaml port fileserver 80 2>/dev/null | head -n 1 || true)"
+HTTPS_BIND="$(docker compose -f config.yaml port fileserver 443 2>/dev/null | head -n 1 || true)"
+HTTP_PORT="${HTTP_BIND##*:}"
+HTTPS_PORT="${HTTPS_BIND##*:}"
+
 echo
 echo "FileServer 재시작이 완료되었습니다."
-echo "HTTP  : http://localhost:${FILESERVER_PORT:-18080}"
-echo "HTTPS : https://localhost:${FILESERVER_HTTPS_PORT:-18443}"
+if [ -n "$HTTP_PORT" ]; then
+  echo "HTTP  : http://localhost:$HTTP_PORT"
+else
+  echo "HTTP  : 포트 매핑을 확인할 수 없습니다."
+fi
+if [ -n "$HTTPS_PORT" ]; then
+  echo "HTTPS : https://localhost:$HTTPS_PORT"
+else
+  echo "HTTPS : 포트 매핑을 확인할 수 없습니다."
+fi
