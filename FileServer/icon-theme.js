@@ -39,15 +39,16 @@
     return `<span class="fs-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${paths[name] || paths.file}</svg></span>${label ? `<span>${label}</span>` : ''}`;
   }
 
-  function set(el, name, label) {
-    if (!el || el.dataset.iconThemeDone === `${name}:${label || ''}`) return;
+  function set(el, name, label = '') {
+    const key = `${name}:${label}`;
+    if (!el || el.dataset.iconThemeDone === key) return false;
     el.innerHTML = icon(name, label);
-    el.dataset.iconThemeDone = `${name}:${label || ''}`;
+    el.dataset.iconThemeDone = key;
+    return true;
   }
 
   function applyStatic() {
-    const titleIcon = document.querySelector('.app > .bar:first-child > span:first-child');
-    if (titleIcon) titleIcon.innerHTML = icon('folder');
+    set(document.querySelector('.app > .bar:first-child > span:first-child'), 'folder');
 
     const map = {
       uploadFiles: ['upload', '업로드'], uploadFolder: ['folderUpload', '폴더 업로드'],
@@ -64,6 +65,7 @@
     const address = document.querySelector('.address');
     if (address && address.firstChild?.nodeType === Node.TEXT_NODE) address.firstChild.remove();
     if (address && !address.querySelector('.fs-icon')) address.insertAdjacentHTML('afterbegin', icon('folder'));
+
     const search = document.querySelector('.search');
     if (search && search.firstChild?.nodeType === Node.TEXT_NODE) search.firstChild.remove();
     if (search && !search.querySelector('.fs-icon')) search.insertAdjacentHTML('afterbegin', icon('search'));
@@ -71,8 +73,8 @@
     const sideMap = [['home','home'],['shared','users'],['recent','recent'],['favorites','star'],['activity','activity'],['trash','trash']];
     for (const [view, name] of sideMap) {
       const button = document.querySelector(`.side button[data-view="${view}"]`);
-      if (!button) continue;
-      const label = button.textContent.replace(/^[^\p{L}\p{N}]+/u,'').trim();
+      if (!button || button.dataset.iconThemeDone) continue;
+      const label = button.textContent.replace(/^[^\p{L}\p{N}]+/u, '').trim();
       set(button, name, label);
     }
     set(document.getElementById('sharesButton'), 'link', '공유 링크 관리');
@@ -81,23 +83,27 @@
 
   function replaceFileIcons() {
     document.querySelectorAll('.file-icon').forEach(el => {
+      if (el.querySelector('.fs-icon')) return;
       const row = el.closest('[data-path]');
-      const path = row?.dataset.path || '';
+      const path = (row?.dataset.path || '').toLowerCase();
       const text = el.textContent;
       let name = 'file';
       if (text.includes('📁')) name = 'folder';
       else if (text.includes('🖼')) name = 'image';
       else if (text.includes('🎞')) name = 'video';
       else if (text.includes('🎵')) name = 'audio';
-      else if (text.includes('📕') || path.toLowerCase().endsWith('.pdf')) name = 'pdf';
+      else if (text.includes('📕') || path.endsWith('.pdf')) name = 'pdf';
       else if (text.includes('🗜')) name = 'archive';
       el.innerHTML = icon(name);
+      el.dataset.iconThemeDone = name;
     });
+
     document.querySelectorAll('.thumb').forEach(el => {
       if (el.querySelector('img,video,.fs-icon')) return;
       const text = el.textContent;
-      let name = text.includes('📁') ? 'folder' : text.includes('🖼') ? 'image' : text.includes('🎞') ? 'video' : text.includes('🎵') ? 'audio' : text.includes('🗜') ? 'archive' : 'file';
+      const name = text.includes('📁') ? 'folder' : text.includes('🖼') ? 'image' : text.includes('🎞') ? 'video' : text.includes('🎵') ? 'audio' : text.includes('🗜') ? 'archive' : 'file';
       el.innerHTML = icon(name);
+      el.dataset.iconThemeDone = name;
     });
   }
 
@@ -109,17 +115,37 @@
       ['새 폴더','folder'],['새 파일','note'],['업로드','upload']
     ]);
     document.querySelectorAll('#menu button, #newCreateMenu button').forEach(button => {
+      if (button.dataset.iconThemeDone) return;
       const label = button.textContent.trim();
       const name = menuMap.get(label);
       if (name) set(button, name, label);
     });
+
     const plus = document.getElementById('newMenuButton');
-    if (plus) plus.innerHTML = icon('plus', window.innerWidth > 780 ? '새로 만들기' : '') + icon('chevronDown');
+    if (plus) {
+      const wide = window.innerWidth > 780;
+      const key = `new-menu:${wide ? 'wide' : 'compact'}`;
+      if (plus.dataset.iconThemeDone !== key) {
+        plus.innerHTML = icon('plus', wide ? '새로 만들기' : '') + icon('chevronDown');
+        plus.dataset.iconThemeDone = key;
+      }
+    }
   }
 
-  const observer = new MutationObserver(() => {
-    applyStatic(); replaceFileIcons(); replaceMenuIcons();
-  });
+  let scheduled = false;
+  function scheduleApply() {
+    if (scheduled) return;
+    scheduled = true;
+    queueMicrotask(() => {
+      scheduled = false;
+      applyStatic();
+      replaceFileIcons();
+      replaceMenuIcons();
+    });
+  }
+
+  const observer = new MutationObserver(scheduleApply);
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  applyStatic(); replaceFileIcons(); replaceMenuIcons();
+  window.addEventListener('resize', scheduleApply, { passive: true });
+  scheduleApply();
 })();
