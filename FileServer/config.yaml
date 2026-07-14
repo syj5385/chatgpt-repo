@@ -59,6 +59,7 @@ services:
       - ./view-mode-fix.js:/tmp/view-mode-fix.js:ro
       - ./navigation-enhancements.js:/tmp/navigation-enhancements.js:ro
       - ./exclusive-view.js:/tmp/exclusive-view.js:ro
+      - ./view-display-hardfix.js:/tmp/view-display-hardfix.js:ro
       - ./auth-client.js:/tmp/auth-client.js:ro
       - ./auth-ui:/tmp/auth-ui:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
@@ -98,7 +99,7 @@ services:
         chmod 644 /etc/nginx/certs/fileserver.crt
         cat /tmp/mobile-responsive-source.css /tmp/icon-theme.css /tmp/navigation-enhancements.css /tmp/exclusive-view.css > /tmp/mobile-responsive.css
         cat /tmp/create-menu-source.js /tmp/icon-theme.js /tmp/view-mode-fix.js /tmp/navigation-enhancements.js /tmp/exclusive-view.js > /tmp/create-menu.js
-        sed 's#</head>#<link rel="stylesheet" href="/mobile-responsive.css"><link rel="stylesheet" href="/toolbar-compact.css"><link rel="stylesheet" href="/create-menu.css"></head>#; s#<script src="/explorer-v2.js"></script>#<script src="/explorer-fix.js"></script><script src="/explorer-v2.js"></script>#; s#</body>#<script src="/explorer-extras.js"></script><script src="/toolbar-context.js"></script><script src="/create-menu.js"></script></body>#' /tmp/index.html > /tmp/fileserver-index.html
+        sed 's#</head>#<link rel="stylesheet" href="/mobile-responsive.css"><link rel="stylesheet" href="/toolbar-compact.css"><link rel="stylesheet" href="/create-menu.css"></head>#; s#<script src="/explorer-v2.js"></script>#<script src="/explorer-fix.js"></script><script src="/explorer-v2.js"></script>#; s#</body>#<script src="/explorer-extras.js"></script><script src="/toolbar-context.js"></script><script src="/create-menu.js"></script><script src="/view-display-hardfix.js"></script></body>#' /tmp/index.html > /tmp/fileserver-index.html
         sed 's#</body>#<script src="/auth-assets/admin-storage.js"></script></body>#' /tmp/auth-ui/admin.html > /tmp/fileserver-admin.html
 
         rm -f /etc/nginx/sites-enabled/default
