@@ -1,0 +1,28 @@
+.toolbar > #download,
+.toolbar > #move,
+.toolbar > #copy,
+.toolbar > #archive,
+.toolbar > #remove,
+.toolbar > #details,
+.toolbar > #viewToggle,
+.toolbar > #refresh,
+.toolbar > .separator,
+.toolbar > .grow {
+  display: none !important;
+}
+
+.toolbar {
+  justify-content: flex-start;
+}
+
+@media (max-width: 780px) {
+  .toolbar {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
