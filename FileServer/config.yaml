@@ -1,10 +1,32 @@
 services:
+  auth:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    image: fileserver-auth:latest
+    container_name: FileServerAuth
+    environment:
+      FILESERVER_ACCESS_MODE: "${FILESERVER_ACCESS_MODE:-private}"
+      FILESERVER_ADMIN_USER: "${FILESERVER_ADMIN_USER:-admin}"
+      FILESERVER_ADMIN_PASSWORD: "${FILESERVER_ADMIN_PASSWORD:-admin}"
+      FILESERVER_COOKIE_SECURE: "${FILESERVER_COOKIE_SECURE:-true}"
+      FILESERVER_SESSION_HOURS: "${FILESERVER_SESSION_HOURS:-12}"
+      FILESERVER_REMEMBER_DAYS: "${FILESERVER_REMEMBER_DAYS:-30}"
+      FILESERVER_PASSWORD_MIN_LENGTH: "${FILESERVER_PASSWORD_MIN_LENGTH:-8}"
+      FILESERVER_AUTH_DB: /data/auth.db
+    volumes:
+      - ./auth-data:/data
+    restart: unless-stopped
+
   fileserver:
     build:
       context: .
       dockerfile: Dockerfile
     image: fileserver:latest
     container_name: FileServer
+    depends_on:
+      auth:
+        condition: service_healthy
     ports:
       - "${FILESERVER_PORT:-18080}:80"
       - "${FILESERVER_HTTPS_PORT:-18443}:443"
@@ -22,6 +44,8 @@ services:
       - ./sidebar-favorites.js:/tmp/sidebar-favorites.js:ro
       - ./ui-cleanup.js:/tmp/ui-cleanup.js:ro
       - ./responsive-location-bar.js:/tmp/responsive-location-bar.js:ro
+      - ./auth-client.js:/tmp/auth-client.js:ro
+      - ./auth-ui:/tmp/auth-ui:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
       - ./files:/files
       - ./certs:/etc/nginx/certs
@@ -58,7 +82,7 @@ services:
         chmod 600 /etc/nginx/certs/fileserver.key
         chmod 644 /etc/nginx/certs/fileserver.crt
 
-        sed 's#</body>#<script src="/file-actions.js"></script><script src="/settings.js"></script><script src="/connection-status.js"></script><script src="/breadcrumb.js"></script><script src="/sidebar-favorites.js"></script><script src="/ui-cleanup.js"></script><script src="/responsive-location-bar.js"></script></body>#' \
+        sed 's#</body>#<script src="/file-actions.js"></script><script src="/settings.js"></script><script src="/connection-status.js"></script><script src="/breadcrumb.js"></script><script src="/sidebar-favorites.js"></script><script src="/ui-cleanup.js"></script><script src="/responsive-location-bar.js"></script><script src="/auth-client.js"></script></body>#' \
           /tmp/index.html \
           > /tmp/fileserver-index.html
 
