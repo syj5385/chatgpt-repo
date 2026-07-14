@@ -2,9 +2,9 @@
   'use strict';
 
   // explorer-v2.js reads E.closeDrawer even though closeDrawer is missing from
-  // its local element map. Provide the value without a getter/setter so Safari
-  // WebIDL conversions cannot trigger user code while constructing Headers,
-  // Requests, URLs, or other platform objects.
+  // its local element map. Provide a non-enumerable data value rather than a
+  // getter/setter so Safari platform-object conversions cannot execute user
+  // code unexpectedly.
   const closeDrawer = document.getElementById('closeDrawer');
   if (!closeDrawer) return;
 
@@ -16,14 +16,19 @@
       value: closeDrawer
     });
 
-    // explorer-v2 binds synchronously when its script executes immediately
-    // after this one. Remove the temporary compatibility property afterward.
-    window.setTimeout(() => {
-      try {
-        delete Object.prototype.closeDrawer;
-      } catch (error) {
-        console.error('Failed to remove closeDrawer compatibility property', error);
+    // bootstrap() is asynchronous. Keep the compatibility value until the
+    // explorer has actually attached the close handler, then remove it.
+    let checks = 0;
+    const timer = window.setInterval(() => {
+      checks += 1;
+      if (typeof closeDrawer.onclick === 'function' || checks >= 200) {
+        window.clearInterval(timer);
+        try {
+          delete Object.prototype.closeDrawer;
+        } catch (error) {
+          console.error('Failed to remove closeDrawer compatibility property', error);
+        }
       }
-    }, 0);
+    }, 25);
   }
 })();
