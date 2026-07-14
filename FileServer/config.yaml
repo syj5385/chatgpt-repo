@@ -44,6 +44,7 @@ services:
     volumes:
       - ./index.html:/tmp/index.html:ro
       - ./explorer-v2.js:/tmp/explorer-v2.js:ro
+      - ./explorer-extras.js:/tmp/explorer-extras.js:ro
       - ./auth-client.js:/tmp/auth-client.js:ro
       - ./auth-ui:/tmp/auth-ui:ro
       - ./nginx-default.conf:/etc/nginx/sites-available/default:ro
@@ -81,7 +82,8 @@ services:
 
         chmod 600 /etc/nginx/certs/fileserver.key
         chmod 644 /etc/nginx/certs/fileserver.crt
-        cp /tmp/index.html /tmp/fileserver-index.html
+        sed 's#</body>#<script src="/explorer-extras.js"></script></body>#' /tmp/index.html > /tmp/fileserver-index.html
+        sed 's#</body>#<script src="/auth-assets/admin-storage.js"></script></body>#' /tmp/auth-ui/admin.html > /tmp/fileserver-admin.html
 
         rm -f /etc/nginx/sites-enabled/default
         sed "s/__HTTPS_REDIRECT_PORT__/$${FILESERVER_HTTPS_REDIRECT_PORT}/g" \
