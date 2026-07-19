@@ -27,7 +27,7 @@ https://192.168.0.20:5443
 
 - Android Studio Quail 2 또는 AGP 9.3을 지원하는 버전
 - JDK 17
-- Android SDK Platform 37
+- Android SDK Platform 36
 - Android SDK Build Tools 36.0.0
 - Gradle 9.5.0
 
