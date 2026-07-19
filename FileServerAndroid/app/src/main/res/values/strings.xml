@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FileExplore</string>
+    <string name="server_not_configured">서버 주소를 설정하세요</string>
+    <string name="reload">새로고침</string>
+    <string name="settings">서버 설정</string>
+    <string name="retry">다시 시도</string>
+</resources>
