@@ -6,6 +6,7 @@ import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
@@ -91,7 +92,9 @@ class MainActivity : Activity() {
             setAcceptThirdPartyCookies(webView, true)
         }
 
-        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+        val isDebuggable =
+            (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        WebView.setWebContentsDebuggingEnabled(isDebuggable)
 
         webView.settings.apply {
             javaScriptEnabled = true
