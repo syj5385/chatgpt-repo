@@ -1,0 +1,5 @@
+auth-data/
+certs/
+files/
+.git/
+.DS_Store

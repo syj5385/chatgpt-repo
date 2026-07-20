@@ -68,6 +68,11 @@
   box-shadow: 0 12px 32px var(--shadow);
 }
 
+/* This menu is opened from inside the mobile sidebar (z-index: 260). */
+.theme-choice-menu {
+  z-index: 280;
+}
+
 .mobile-action-menu[hidden] {
   display: none !important;
 }

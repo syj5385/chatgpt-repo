@@ -4,7 +4,7 @@ import html
 import os
 import secrets
 from contextlib import closing
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -224,6 +224,33 @@ def upload_share_html(token: str, row: Any, message: str = "", success: bool = F
     return f"""<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>파일 제출</title><style>body{{font-family:system-ui;background:#f3f3f3;display:grid;place-items:center;min-height:100vh;margin:0}}form{{width:min(440px,92vw);background:white;padding:24px;border-radius:12px;box-shadow:0 12px 32px #0002}}label{{display:grid;gap:6px;margin:14px 0}}input,button{{width:100%;min-height:42px;box-sizing:border-box}}button{{background:#0067c0;color:white;border:0;border-radius:7px;font-weight:600}}p{{color:{color}}}.muted{{color:#666;font-size:13px}}</style></head><body><form method='post' action='/share/{token}' enctype='multipart/form-data'><h2>파일 제출</h2><div class='muted'>제출 위치: {target}</div><div class='muted'>파일당 최대 크기: {max_size}</div>{password}<label>파일 선택<input name='upload' type='file' required multiple></label><button>업로드</button><p>{safe_message}</p></form></body></html>"""
 
 
+def _human_size(value: int) -> str:
+    size = float(value)
+    units = ("B", "KB", "MB", "GB", "TB")
+    for unit in units:
+        if size < 1024 or unit == units[-1]:
+            return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} B"
+        size /= 1024
+    return f"{int(value)} B"
+
+
+def download_share_html(token: str, row: Any, message: str = "") -> str:
+    target = extended.disk_path(row["path"])
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="공유된 파일이 삭제되었습니다.")
+    stat = target.stat()
+    name = html.escape(target.name or "공유 파일")
+    kind = "폴더 (ZIP 다운로드)" if target.is_dir() else html.escape(target.suffix.lstrip(".").upper() or "파일")
+    size = _human_size(extended.directory_size(target))
+    modified = datetime.fromtimestamp(stat.st_mtime).astimezone().strftime("%Y-%m-%d %H:%M")
+    expires = html.escape(str(row["expires_at"] or "제한 없음").replace("T", " ").replace("Z", " UTC"))
+    remaining = "제한 없음" if not row["max_downloads"] else f"{max(0, row['max_downloads'] - row['downloads'])}회"
+    password = "<label>비밀번호<input name='password' type='password' required autocomplete='current-password'></label>" if row["password_hash"] else ""
+    safe_message = html.escape(message)
+    safe_token = html.escape(token, quote=True)
+    return f"""<!doctype html><html lang='ko'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{name} - 공유 파일</title><style>:root{{color-scheme:light}}*{{box-sizing:border-box}}body{{font-family:system-ui,-apple-system,sans-serif;background:#f3f3f3;color:#202020;display:grid;place-items:center;min-height:100vh;margin:0;padding:20px}}main{{width:min(480px,100%);background:white;padding:28px;border:1px solid #ddd;border-radius:14px;box-shadow:0 12px 32px #0002}}.icon{{font-size:52px;text-align:center}}h1{{font-size:22px;text-align:center;overflow-wrap:anywhere}}dl{{display:grid;grid-template-columns:110px 1fr;gap:12px;margin:24px 0;padding:18px;background:#f8f8f8;border-radius:9px}}dt{{color:#666}}dd{{margin:0;overflow-wrap:anywhere}}label{{display:grid;gap:7px;margin:16px 0}}input,button{{width:100%;min-height:44px;font:inherit}}input{{padding:0 12px;border:1px solid #999;border-radius:7px}}button{{background:#0067c0;color:white;border:0;border-radius:7px;font-weight:700;cursor:pointer}}.error{{color:#b42318;text-align:center;min-height:20px}}</style></head><body><main><div class='icon'>{'📁' if target.is_dir() else '📄'}</div><h1>{name}</h1><dl><dt>유형</dt><dd>{kind}</dd><dt>크기</dt><dd>{size}</dd><dt>수정한 날짜</dt><dd>{modified}</dd><dt>링크 만료</dt><dd>{expires}</dd><dt>남은 다운로드</dt><dd>{remaining}</dd></dl><form method='post' action='/share/{safe_token}/download'>{password}<button type='submit'>다운로드</button></form><div class='error'>{safe_message}</div></main></body></html>"""
+
+
 def share_owner_session(owner_user_id: int) -> dict[str, Any]:
     with closing(main.connect()) as connection:
         row = connection.execute(
@@ -243,8 +270,16 @@ def public_share(token: str) -> Response:
         if not target.is_dir():
             raise HTTPException(status_code=409, detail="업로드 공유 대상이 폴더가 아닙니다.")
         return HTMLResponse(upload_share_html(token, row))
-    if row["password_hash"]:
-        return HTMLResponse(extended._share_login_html(token))
+    return HTMLResponse(download_share_html(token, row))
+
+
+@app.post("/share/{token}/download")
+def public_share_download(token: str, password: str = Form(default="")) -> Response:
+    row = extended._share_row(token)
+    if row["permission"] != "download":
+        raise HTTPException(status_code=405, detail="다운로드 공유 링크가 아닙니다.")
+    if row["password_hash"] and not main.verify_password(row["password_hash"], password):
+        return HTMLResponse(download_share_html(token, row, "비밀번호가 올바르지 않습니다."), status_code=401)
     return extended._stream_shared(row)
 
 

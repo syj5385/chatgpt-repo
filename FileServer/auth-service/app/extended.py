@@ -77,6 +77,10 @@ class FileOperationPayload(BaseModel):
     overwrite: bool = False
 
 
+class RenamePayload(PathPayload):
+    name: str = Field(min_length=1, max_length=255)
+
+
 class ArchivePayload(BaseModel):
     paths: list[str] = Field(min_length=1, max_length=500)
     destination: str
@@ -860,6 +864,34 @@ def copy_items(payload: FileOperationPayload, request: Request, session: dict[st
     return {"paths": _copy_or_move(payload, session, False)}
 
 
+@app.post("/api/files/rename")
+def rename_item(payload: RenamePayload, request: Request, session: dict[str, Any] = Depends(main.require_session)) -> dict[str, Any]:
+    main.require_csrf(request, session)
+    source_relative = require_path(session, payload.path, write=True).rstrip("/")
+    source = disk_path(source_relative)
+    if not source.exists():
+        raise HTTPException(status_code=404, detail=f"{source_relative} 항목을 찾을 수 없습니다.")
+
+    new_name = payload.name.strip()
+    if not new_name or any(char in new_name for char in "\\/\x00"):
+        raise HTTPException(status_code=400, detail="파일 이름에 사용할 수 없는 문자가 포함되어 있습니다.")
+    if new_name in {".", ".."}:
+        raise HTTPException(status_code=400, detail="사용할 수 없는 파일 이름입니다.")
+
+    target_relative = clean_relative(str(PurePosixPath(source_relative).parent / new_name))
+    require_path(session, target_relative, write=True)
+    target = disk_path(target_relative)
+    if source_relative == target_relative:
+        return {"path": source_relative + ("/" if source.is_dir() else "")}
+    if target.exists():
+        raise HTTPException(status_code=409, detail=f"{new_name} 항목이 이미 존재합니다.")
+
+    shutil.move(str(source), str(target))
+    move_metadata(source_relative, target_relative)
+    record_activity(session["id"], "RENAME", source_relative, f"destination={target_relative}")
+    return {"path": target_relative + ("/" if target.is_dir() else "")}
+
+
 def _safe_archive_name(relative: str) -> str:
     name = Path(relative.rstrip("/")).name
     return name or "archive"
@@ -986,9 +1018,9 @@ def create_share(payload: SharePayload, request: Request, session: dict[str, Any
 def list_shares(session: dict[str, Any] = Depends(main.require_session)) -> dict[str, Any]:
     with closing(feature_db()) as connection:
         if session["role"] == "admin":
-            rows = connection.execute("SELECT id, owner_user_id, path, permission, expires_at, max_downloads, downloads, created_at, revoked_at FROM shares ORDER BY id DESC").fetchall()
+            rows = connection.execute("SELECT id, owner_user_id, path, permission, expires_at, max_downloads, downloads, created_at, revoked_at FROM shares WHERE revoked_at IS NULL ORDER BY id DESC").fetchall()
         else:
-            rows = connection.execute("SELECT id, owner_user_id, path, permission, expires_at, max_downloads, downloads, created_at, revoked_at FROM shares WHERE owner_user_id = ? ORDER BY id DESC", (session["id"],)).fetchall()
+            rows = connection.execute("SELECT id, owner_user_id, path, permission, expires_at, max_downloads, downloads, created_at, revoked_at FROM shares WHERE owner_user_id = ? AND revoked_at IS NULL ORDER BY id DESC", (session["id"],)).fetchall()
     return {"shares": [dict(row) for row in rows]}
 
 

@@ -51,8 +51,10 @@ services:
       - ./toolbar-compact.css:/tmp/toolbar-compact.css:ro
       - ./create-menu.css:/tmp/create-menu-source.css:ro
       - ./icon-theme.css:/tmp/icon-theme.css:ro
+      - ./icon-theme.js:/tmp/icon-theme.js:ro
       - ./explorer-v2.js:/tmp/explorer-v2-source.js:ro
       - ./explorer-extras.js:/tmp/explorer-extras.js:ro
+      - ./navigation-enhancements.js:/tmp/navigation-enhancements.js:ro
       - ./toolbar-context.js:/tmp/toolbar-context-source.js:ro
       - ./mobile-toolbar-fix.js:/tmp/mobile-toolbar-fix.js:ro
       - ./auth-client.js:/tmp/auth-client.js:ro

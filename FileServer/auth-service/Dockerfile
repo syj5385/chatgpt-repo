@@ -18,7 +18,7 @@ COPY app ./app
 
 RUN mkdir -p /data /files \
     && python -m py_compile app/*.py \
-    && python -c "from app.hotfix import app; paths={getattr(route, 'path', '') for route in app.routes}; required={'/health','/api/files/workspace','/api/files/uploads/init','/api/files/shares','/api/files/lock','/share/{token}'}; missing=required-paths; assert not missing, f'Missing routes: {sorted(missing)}'"
+    && python -c "from app.hotfix import app; paths={getattr(route, 'path', '') for route in app.routes}; required={'/health','/api/files/workspace','/api/files/uploads/init','/api/files/rename','/api/files/shares','/api/files/lock','/share/{token}','/share/{token}/download'}; missing=required-paths; assert not missing, f'Missing routes: {sorted(missing)}'"
 
 EXPOSE 8000
 
