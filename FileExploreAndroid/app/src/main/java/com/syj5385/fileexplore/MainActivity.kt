@@ -1,5 +1,6 @@
 package com.syj5385.fileexplore
 
+import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.DownloadManager
@@ -7,6 +8,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
@@ -41,12 +43,21 @@ class MainActivity : Activity() {
         private const val PREFS_NAME = "file_explore_preferences"
         private const val PREF_SERVER_URL = "server_url"
         private const val FILE_CHOOSER_REQUEST = 1001
+        private const val DOWNLOAD_PERMISSION_REQUEST = 1002
     }
+
+    private data class PendingDownload(
+        val url: String,
+        val userAgent: String?,
+        val contentDisposition: String?,
+        val mimeType: String?
+    )
 
     private lateinit var webView: WebView
     private lateinit var pageProgress: ProgressBar
     private lateinit var pageTitle: TextView
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var pendingDownload: PendingDownload? = null
     private var homeUrl: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,7 +120,7 @@ class MainActivity : Activity() {
             allowFileAccess = false
             allowContentAccess = true
             setSupportMultipleWindows(false)
-            userAgentString = "$userAgentString FileExploreAndroid/1.0"
+            userAgentString = "$userAgentString FileExploreAndroid/1.0.2"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 safeBrowsingEnabled = true
             }
@@ -346,18 +357,47 @@ class MainActivity : Activity() {
             return
         }
 
+        val download = PendingDownload(url, userAgent, contentDisposition, mimeType)
+        if (requiresLegacyStoragePermission() &&
+            checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingDownload = download
+            requestPermissions(
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                DOWNLOAD_PERMISSION_REQUEST
+            )
+            return
+        }
+
+        enqueueDownload(download)
+    }
+
+    private fun requiresLegacyStoragePermission(): Boolean {
+        return Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
+    }
+
+    private fun enqueueDownload(download: PendingDownload) {
         try {
-            val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
-            val request = DownloadManager.Request(Uri.parse(url)).apply {
+            val fileName = URLUtil.guessFileName(
+                download.url,
+                download.contentDisposition,
+                download.mimeType
+            )
+            val request = DownloadManager.Request(Uri.parse(download.url)).apply {
                 setTitle(fileName)
                 setDescription(getString(R.string.app_name))
-                setMimeType(mimeType)
+                download.mimeType
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { setMimeType(it) }
                 setNotificationVisibility(
                     DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
                 )
                 setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-                userAgent?.takeIf { it.isNotBlank() }?.let { addRequestHeader("User-Agent", it) }
-                CookieManager.getInstance().getCookie(url)
+                download.userAgent
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { addRequestHeader("User-Agent", it) }
+                CookieManager.getInstance().getCookie(download.url)
                     ?.takeIf { it.isNotBlank() }
                     ?.let { addRequestHeader("Cookie", it) }
             }
@@ -454,6 +494,23 @@ class MainActivity : Activity() {
         }
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != DOWNLOAD_PERMISSION_REQUEST) return
+
+        val download = pendingDownload
+        pendingDownload = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED && download != null) {
+            enqueueDownload(download)
+        } else {
+            Toast.makeText(this, R.string.download_permission_denied, Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         webView.saveState(outState)
         super.onSaveInstanceState(outState)
@@ -471,6 +528,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        pendingDownload = null
         filePathCallback?.onReceiveValue(null)
         filePathCallback = null
         webView.stopLoading()
