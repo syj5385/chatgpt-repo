@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="toolbar_background">#17191C</color>
+    <color name="toolbar_foreground">#E2E2E6</color>
+    <color name="accent">#AFC6FF</color>
+    <color name="error_text">#FFB4AB</color>
+</resources>
