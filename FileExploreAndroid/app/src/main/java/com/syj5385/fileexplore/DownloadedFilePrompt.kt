@@ -1,7 +1,6 @@
 package com.syj5385.fileexplore
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.Application
 import android.content.ActivityNotFoundException
 import android.content.ClipData
@@ -19,26 +18,18 @@ internal object DownloadedFilePrompt : Application.ActivityLifecycleCallbacks {
 
     fun offer(result: FileDownloadResult) {
         pendingResult = result
-        showIfPossible()
+        openIfPossible()
     }
 
-    private fun showIfPossible() {
+    private fun openIfPossible() {
         val activity = resumedActivity?.get() ?: return
         if (activity.isFinishing || activity.isDestroyed) return
         val result = pendingResult ?: return
         pendingResult = null
-
-        AlertDialog.Builder(activity)
-            .setTitle(R.string.download_open_title)
-            .setMessage(activity.getString(R.string.download_open_message, result.fileName))
-            .setNegativeButton(R.string.download_open_later, null)
-            .setPositiveButton(R.string.download_open_now) { _, _ ->
-                openFile(activity, result)
-            }
-            .show()
+        openFileChooser(activity, result)
     }
 
-    private fun openFile(activity: Activity, result: FileDownloadResult) {
+    private fun openFileChooser(activity: Activity, result: FileDownloadResult) {
         val mimeType = resolveMimeType(result)
         val viewIntent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(result.uri, mimeType)
@@ -86,7 +77,7 @@ internal object DownloadedFilePrompt : Application.ActivityLifecycleCallbacks {
 
     override fun onActivityResumed(activity: Activity) {
         resumedActivity = WeakReference(activity)
-        showIfPossible()
+        openIfPossible()
     }
 
     override fun onActivityPaused(activity: Activity) {
