@@ -14,6 +14,7 @@ class FileExploreApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        registerActivityLifecycleCallbacks(DownloadedFilePrompt)
 
         val preferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (!preferences.getBoolean(PREF_DEFAULT_URL_APPLIED, false)) {
