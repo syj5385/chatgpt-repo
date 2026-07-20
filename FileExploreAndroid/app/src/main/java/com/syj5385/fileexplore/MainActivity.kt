@@ -3,7 +3,6 @@ package com.syj5385.fileexplore
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
-import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -11,10 +10,10 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.net.http.SslCertificate
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
@@ -23,7 +22,6 @@ import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.HttpAuthHandler
 import android.webkit.SslErrorHandler
-import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -46,19 +44,14 @@ class MainActivity : Activity() {
         private const val DOWNLOAD_PERMISSION_REQUEST = 1002
     }
 
-    private data class PendingDownload(
-        val url: String,
-        val userAgent: String?,
-        val contentDisposition: String?,
-        val mimeType: String?
-    )
-
     private lateinit var webView: WebView
     private lateinit var pageProgress: ProgressBar
     private lateinit var pageTitle: TextView
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
-    private var pendingDownload: PendingDownload? = null
+    private var pendingDownload: FileDownloadRequest? = null
     private var homeUrl: String? = null
+    private var acceptedSslHost: String? = null
+    private var acceptedSslCertificateDer: ByteArray? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,7 +113,7 @@ class MainActivity : Activity() {
             allowFileAccess = false
             allowContentAccess = true
             setSupportMultipleWindows(false)
-            userAgentString = "$userAgentString FileExploreAndroid/1.0.2"
+            userAgentString = "$userAgentString FileExploreAndroid/1.0.3"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 safeBrowsingEnabled = true
             }
@@ -174,12 +167,28 @@ class MainActivity : Activity() {
                 }
 
                 val host = error?.url?.let { Uri.parse(it).host }.orEmpty()
+                val certificateDer = sslCertificateDer(error?.certificate)
+                val alreadyAccepted = host.equals(acceptedSslHost, ignoreCase = true) &&
+                    certificateDer != null &&
+                    acceptedSslCertificateDer?.contentEquals(certificateDer) == true
+                if (alreadyAccepted) {
+                    handler.proceed()
+                    return
+                }
+
                 val reason = sslErrorDescription(error)
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle(R.string.ssl_warning_title)
-                    .setMessage("$host\n$reason\n\n가능하면 인증서를 Android에 설치해 신뢰한 뒤 연결하세요.")
+                    .setMessage(
+                        "$host\n$reason\n\n" +
+                            "계속하면 이번 앱 실행 동안 이 서버와 동일한 인증서에만 접속과 다운로드를 허용합니다."
+                    )
                     .setNegativeButton(R.string.ssl_warning_cancel) { _, _ -> handler.cancel() }
-                    .setPositiveButton(R.string.ssl_warning_continue) { _, _ -> handler.proceed() }
+                    .setPositiveButton(R.string.ssl_warning_continue) { _, _ ->
+                        acceptedSslHost = host
+                        acceptedSslCertificateDer = certificateDer?.copyOf()
+                        handler.proceed()
+                    }
                     .setOnCancelListener { handler.cancel() }
                     .show()
             }
@@ -297,6 +306,8 @@ class MainActivity : Activity() {
                     return@setOnClickListener
                 }
                 dialog.dismiss()
+                acceptedSslHost = null
+                acceptedSslCertificateDer = null
                 webView.stopLoading()
                 webView.clearHistory()
                 loadServer(normalized)
@@ -357,7 +368,15 @@ class MainActivity : Activity() {
             return
         }
 
-        val download = PendingDownload(url, userAgent, contentDisposition, mimeType)
+        val download = FileDownloadRequest(
+            url = url,
+            userAgent = userAgent,
+            contentDisposition = contentDisposition,
+            mimeType = mimeType,
+            cookie = CookieManager.getInstance().getCookie(url),
+            trustedHost = acceptedSslHost,
+            trustedCertificateDer = acceptedSslCertificateDer?.copyOf()
+        )
         if (requiresLegacyStoragePermission() &&
             checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
             PackageManager.PERMISSION_GRANTED
@@ -377,37 +396,16 @@ class MainActivity : Activity() {
         return Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
     }
 
-    private fun enqueueDownload(download: PendingDownload) {
-        try {
-            val fileName = URLUtil.guessFileName(
-                download.url,
-                download.contentDisposition,
-                download.mimeType
-            )
-            val request = DownloadManager.Request(Uri.parse(download.url)).apply {
-                setTitle(fileName)
-                setDescription(getString(R.string.app_name))
-                download.mimeType
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { setMimeType(it) }
-                setNotificationVisibility(
-                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                )
-                setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-                download.userAgent
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { addRequestHeader("User-Agent", it) }
-                CookieManager.getInstance().getCookie(download.url)
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { addRequestHeader("Cookie", it) }
-            }
+    private fun enqueueDownload(download: FileDownloadRequest) {
+        FileDownloader.enqueue(applicationContext, download)
+    }
 
-            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            manager.enqueue(request)
-            Toast.makeText(this, R.string.download_started, Toast.LENGTH_SHORT).show()
-        } catch (_: Exception) {
-            Toast.makeText(this, R.string.download_failed, Toast.LENGTH_LONG).show()
-        }
+    private fun sslCertificateDer(certificate: SslCertificate?): ByteArray? {
+        if (certificate == null) return null
+        return runCatching {
+            val state = SslCertificate.saveState(certificate) ?: return null
+            state.getByteArray("x509-certificate")?.copyOf()
+        }.getOrNull()
     }
 
     private fun showHttpAuthDialog(handler: HttpAuthHandler, host: String, realm: String) {
