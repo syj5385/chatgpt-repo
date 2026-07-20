@@ -2,6 +2,7 @@ package com.syj5385.fileexplore
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.Handler
@@ -10,7 +11,6 @@ import android.provider.MediaStore
 import android.webkit.URLUtil
 import android.widget.Toast
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -36,6 +36,12 @@ internal data class FileDownloadRequest(
     val trustedCertificateDer: ByteArray?
 )
 
+internal data class FileDownloadResult(
+    val fileName: String,
+    val mimeType: String,
+    val uri: Uri
+)
+
 internal object FileDownloader {
 
     private const val MAX_REDIRECTS = 5
@@ -52,12 +58,15 @@ internal object FileDownloader {
 
         executor.execute {
             try {
-                val fileName = download(appContext, request)
-                toast(
-                    appContext,
-                    appContext.getString(R.string.download_complete, fileName),
-                    Toast.LENGTH_LONG
-                )
+                val result = download(appContext, request)
+                mainHandler.post {
+                    Toast.makeText(
+                        appContext,
+                        appContext.getString(R.string.download_complete, result.fileName),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    DownloadedFilePrompt.offer(result)
+                }
             } catch (_: SSLHandshakeException) {
                 toast(appContext, appContext.getString(R.string.download_tls_failed), Toast.LENGTH_LONG)
             } catch (error: DownloadFailure) {
@@ -68,7 +77,7 @@ internal object FileDownloader {
         }
     }
 
-    private fun download(context: Context, request: FileDownloadRequest): String {
+    private fun download(context: Context, request: FileDownloadRequest): FileDownloadResult {
         var currentUrl = URL(request.url)
         val originalHost = currentUrl.host
         var redirectCount = 0
@@ -124,12 +133,16 @@ internal object FileDownloader {
                 )
                 val fileName = sanitizeFileName(guessedName)
 
-                connection.inputStream.use { input ->
+                val savedUri = connection.inputStream.use { input ->
                     saveToDownloads(context, fileName, responseMimeType) { output ->
                         input.copyTo(output, BUFFER_SIZE)
                     }
                 }
-                return fileName
+                return FileDownloadResult(
+                    fileName = fileName,
+                    mimeType = responseMimeType,
+                    uri = savedUri
+                )
             } finally {
                 connection.disconnect()
             }
@@ -204,7 +217,8 @@ internal object FileDownloader {
         fileName: String,
         mimeType: String,
         write: (java.io.OutputStream) -> Unit
-    ) {
+    ): Uri {
+        val resolver = context.contentResolver
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, fileName)
@@ -212,7 +226,6 @@ internal object FileDownloader {
                 put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                 put(MediaStore.Downloads.IS_PENDING, 1)
             }
-            val resolver = context.contentResolver
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
                 ?: throw IOException("Unable to create a Downloads entry")
             try {
@@ -221,11 +234,11 @@ internal object FileDownloader {
                 values.clear()
                 values.put(MediaStore.Downloads.IS_PENDING, 0)
                 resolver.update(uri, values, null, null)
+                return uri
             } catch (error: Exception) {
                 resolver.delete(uri, null, null)
                 throw error
             }
-            return
         }
 
         @Suppress("DEPRECATION")
@@ -236,9 +249,21 @@ internal object FileDownloader {
             throw IOException("Unable to create the Downloads directory")
         }
         val target = uniqueFile(downloadsDirectory, fileName)
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, target.name)
+            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+            @Suppress("DEPRECATION")
+            put(MediaStore.MediaColumns.DATA, target.absolutePath)
+        }
+        val filesCollection = MediaStore.Files.getContentUri("external")
+        val uri = resolver.insert(filesCollection, values)
+            ?: throw IOException("Unable to create a legacy Downloads entry")
         try {
-            FileOutputStream(target).use(write)
+            resolver.openOutputStream(uri, "w")?.use(write)
+                ?: throw IOException("Unable to open the legacy Downloads entry")
+            return uri
         } catch (error: Exception) {
+            resolver.delete(uri, null, null)
             target.delete()
             throw error
         }
