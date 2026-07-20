@@ -19,6 +19,13 @@
     <string name="download_too_many_redirects">다운로드 실패: 서버 리디렉션이 너무 많습니다.</string>
     <string name="download_invalid_redirect">다운로드 실패: 서버가 잘못된 이동 주소를 반환했습니다.</string>
     <string name="download_permission_denied">파일을 다운로드하려면 저장소 권한이 필요합니다.</string>
+    <string name="download_open_title">다운로드 완료</string>
+    <string name="download_open_message">%1$s 파일을 설치된 앱으로 열까요?</string>
+    <string name="download_open_now">열기</string>
+    <string name="download_open_later">나중에</string>
+    <string name="download_open_with">파일을 열 앱 선택</string>
+    <string name="download_open_no_app">이 파일 형식을 열 수 있는 앱이 설치되어 있지 않습니다.</string>
+    <string name="download_open_failed">다운로드한 파일을 다른 앱에 전달하지 못했습니다.</string>
     <string name="open_external_failed">이 링크를 열 수 있는 앱이 없습니다.</string>
     <string name="file_chooser_failed">파일 선택기를 열 수 없습니다.</string>
     <string name="ssl_warning_title">인증서를 신뢰할 수 없음</string>
