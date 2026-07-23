@@ -19,16 +19,18 @@ struct ContentView: View {
             .navigationTitle(model.pageTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        reloadToken = UUID()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    Button {
-                        showingServerSheet = true
-                    } label: {
-                        Image(systemName: "server.rack")
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack {
+                        Button {
+                            reloadToken = UUID()
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        Button {
+                            showingServerSheet = true
+                        } label: {
+                            Image(systemName: "server.rack")
+                        }
                     }
                 }
             }
@@ -62,11 +64,13 @@ struct ContentView: View {
             }
             .presentationDetents([.medium])
         }
-        .sheet(item: Binding(
-            get: { model.shareURL.map(ShareItem.init) },
-            set: { if $0 == nil { model.shareURL = nil } }
-        )) { item in
-            ActivityView(items: [item.url])
+        .sheet(isPresented: Binding(
+            get: { model.shareURL != nil },
+            set: { if !$0 { model.shareURL = nil } }
+        )) {
+            if let url = model.shareURL {
+                ActivityView(items: [url])
+            }
         }
         .alert("오류", isPresented: Binding(
             get: { model.errorMessage != nil },
@@ -77,9 +81,4 @@ struct ContentView: View {
             Text(model.errorMessage ?? "알 수 없는 오류")
         }
     }
-}
-
-private struct ShareItem: Identifiable {
-    let id = UUID()
-    let url: URL
 }
