@@ -1,0 +1,46 @@
+name: FileExplore iOS
+
+on:
+  push:
+    branches:
+      - agent/fileexplore-ios-app
+    paths:
+      - "FileExploreIOS/**"
+      - ".github/workflows/fileexplore-ios.yml"
+  pull_request:
+    paths:
+      - "FileExploreIOS/**"
+      - ".github/workflows/fileexplore-ios.yml"
+
+jobs:
+  build-ios-simulator:
+    runs-on: macos-15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: FileExploreIOS
+        run: xcodegen generate
+
+      - name: Build for iOS Simulator
+        working-directory: FileExploreIOS
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project FileExploreIOS.xcodeproj \
+            -scheme FileExploreIOS \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee xcodebuild.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileExplore-iOS-build-log
+          path: FileExploreIOS/xcodebuild.log
