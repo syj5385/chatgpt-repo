@@ -39,7 +39,17 @@ struct ContentView: View {
                     FileWebView(url: url, reloadToken: reloadToken)
                         .environmentObject(model)
                 } else {
-                    ContentUnavailableView("서버 주소 필요", systemImage: "server.rack")
+                    VStack(spacing: 12) {
+                        Image(systemName: "server.rack")
+                            .font(.system(size: 42))
+                        Text("서버 주소 필요")
+                            .font(.headline)
+                        Button("서버 설정") {
+                            showingServerSheet = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }
