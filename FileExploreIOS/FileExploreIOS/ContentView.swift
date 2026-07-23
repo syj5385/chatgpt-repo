@@ -6,62 +6,66 @@ struct ContentView: View {
     @State private var reloadToken = UUID()
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Text(model.pageTitle)
+                    .font(.headline)
+                    .lineLimit(1)
+                Spacer()
+                Button {
+                    reloadToken = UUID()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .frame(width: 32, height: 32)
+                }
+                Button {
+                    showingServerSheet = true
+                } label: {
+                    Image(systemName: "server.rack")
+                        .frame(width: 32, height: 32)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.bar)
+
+            if model.isLoading {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            }
+
             Group {
                 if let url = model.activeURL {
                     FileWebView(url: url, reloadToken: reloadToken)
                         .environmentObject(model)
-                        .ignoresSafeArea(edges: .bottom)
                 } else {
                     ContentUnavailableView("서버 주소 필요", systemImage: "server.rack")
                 }
             }
-            .navigationTitle(model.pageTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack {
-                        Button {
-                            reloadToken = UUID()
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        Button {
-                            showingServerSheet = true
-                        } label: {
-                            Image(systemName: "server.rack")
-                        }
-                    }
-                }
-            }
-            .overlay(alignment: .top) {
-                if model.isLoading {
-                    ProgressView()
-                        .progressViewStyle(.linear)
-                }
-            }
         }
         .sheet(isPresented: $showingServerSheet) {
-            NavigationStack {
-                Form {
-                    TextField("https://server.example.com", text: $model.serverURLText)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
-                }
-                .navigationTitle("FileExplore 서버")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("취소") { showingServerSheet = false }
+            VStack(spacing: 16) {
+                Text("FileExplore 서버")
+                    .font(.title2.bold())
+                TextField("https://server.example.com", text: $model.serverURLText)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .autocorrectionDisabled()
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Button("취소") {
+                        showingServerSheet = false
                     }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("연결") {
-                            model.connect()
-                            showingServerSheet = false
-                        }
+                    Spacer()
+                    Button("연결") {
+                        model.connect()
+                        showingServerSheet = false
                     }
+                    .buttonStyle(.borderedProminent)
                 }
+                Spacer()
             }
+            .padding(20)
             .presentationDetents([.medium])
         }
         .sheet(isPresented: Binding(
