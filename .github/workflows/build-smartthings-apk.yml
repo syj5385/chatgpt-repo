@@ -1,0 +1,48 @@
+name: Build SmartThings Remote APK
+
+on:
+  push:
+    branches:
+      - smartthings-remote-widget
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore Android project
+        shell: bash
+        run: |
+          cat smartthings-src-part-* > /tmp/smartthings-src.b64
+          base64 -d /tmp/smartthings-src.b64 > /tmp/smartthings-src.tgz
+          tar -xzf /tmp/smartthings-src.tgz
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk SmartThings-Remote-Widget.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: smartthings-remote-widget-apk
+          path: SmartThings-Remote-Widget.apk
+          if-no-files-found: error
