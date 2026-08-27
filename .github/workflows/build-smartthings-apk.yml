@@ -23,6 +23,12 @@ jobs:
           base64 -d /tmp/smartthings-src.b64 > /tmp/smartthings-src.tgz
           tar -xzf /tmp/smartthings-src.tgz
 
+      - name: Apply v2 widget design patch
+        shell: bash
+        run: |
+          base64 -d smartthings-v2.patch.gz.b64 | gzip -d > /tmp/smartthings-v2.patch
+          patch -p2 < /tmp/smartthings-v2.patch
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -38,11 +44,11 @@ jobs:
         run: gradle :app:assembleDebug --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk SmartThings-Remote-Widget.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk SmartThings-Remote-Widget-v2.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: smartthings-remote-widget-apk
-          path: SmartThings-Remote-Widget.apk
+          name: smartthings-remote-widget-v2-apk
+          path: SmartThings-Remote-Widget-v2.apk
           if-no-files-found: error
